@@ -179,6 +179,10 @@ echo -n "{\"psw\": \"YOUR_WIFI_PASSWORD\",\"ssid\": \"YOUR_WIFI_SSID\",\"t\": \"
 Note: This command may vary depending on your OS (e.g. Linux, macOS, CygWin). If facing problems, please consult the appropriate netcat manual.
 
 ## Changelog
+[1.2.5]
+
+- Merged [lelemka0](https://github.com/lelemka0) changes
+- NPM fixes by [vidosits](https://github.com/vidosits)
 
 [1.2.4]
 
@@ -255,3 +259,5 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE.md](LICENSE.md) 
 - [arthurkrupa](https://https://github.com/arthurkrupa) for the actual service
 - [bkbilly](https://github.com/bkbilly) for service improvements to MQTT
 - [aaronsb](https://github.com/aaronsb) for sweeping the Node floor
+- [vidosits](https://github.com/vidosits) for NPM fixes
+- [lelemka0](https://github.com/lelemka0) for various improvements, namely Home Assistant Discovery
