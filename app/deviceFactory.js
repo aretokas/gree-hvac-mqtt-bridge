@@ -193,7 +193,7 @@ class Controller {
 
     // If package type is response to handshake
     if (type === 'dev') {
-      this._setDevice(message.cid || pack.mac, pack.name || pack.mac.substr(4), rinfo.address, rinfo.port)
+      this._setController(message, pack, rinfo.address, rinfo.port)
       this._sendBindRequest(this.device)
       return
     }
