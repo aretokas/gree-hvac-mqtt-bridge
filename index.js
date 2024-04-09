@@ -109,7 +109,7 @@ let hvac
 /**
  * Connect to MQTT broker
  */
-let __mqttTopicPrefix = argv['mqtt-topic-prefix']
+let __mqttTopicPrefix = argv['mqtt-topic-prefix'] || 'gree-hvac'
 if(!__mqttTopicPrefix.endsWith('/'))
   __mqttTopicPrefix += '/'
 const mqttTopicPrefix = __mqttTopicPrefix
