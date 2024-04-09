@@ -21,7 +21,7 @@ const publicValDirect = ['power','health','powerSave','lights','quiet','blow','s
 const onStatus = function(deviceModel, changed) {
   const publish = (name, val) => {
     publish2mqtt(val, deviceModel.mac+'/'+name.toLowerCase())
-    if(!deviceModel.isSubDev)
+    if(!deviceModel.isSubDev && deviceOptions.controllerOnly)
       publish2mqtt(val, name.toLowerCase())
   }
   for(let name in changed){
@@ -52,7 +52,7 @@ const onSetup = function(deviceModel){
     if(skipCmdNames.includes(name))
       continue
     client.subscribe(mqttTopicPrefix + deviceModel.mac + '/' + name.toLowerCase() + '/set')
-    if(!deviceModel.isSubDev)
+    if(!deviceModel.isSubDev && deviceOptions.controllerOnly)
       client.subscribe(mqttTopicPrefix + name.toLowerCase() + '/set')
   }
   /**
