@@ -31,9 +31,10 @@ class HOMEASSISTANT_DISCOVERY{
 
         this.DEVMSG = {
             device: {
-                identifiers: this.unique_id,
-                manufacturer: 'gree',
+                identifiers: [this.device_mac.replace(/..\B/g, '$&:'),this.unique_id],
+                manufacturer: 'Gree',
                 name: this.device_name,
+                connections: [['mac', this.device_mac.replace(/..\B/g, '$&:')]]
             }
         }
 
@@ -43,10 +44,9 @@ class HOMEASSISTANT_DISCOVERY{
     }
 
     REGISTER(commands){
-        const default_commands = ['climate', 'power']
+        const default_commands = ['climate']
         this._register_climate(this.device_temperatureUnit)
-        this._register_power()
-        this.enabledCommands.push('climate', 'power')
+        this.enabledCommands.push('climate')
 
         if(commands)
             for(let cmd of commands){
