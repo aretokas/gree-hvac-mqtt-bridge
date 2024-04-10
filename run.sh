@@ -6,9 +6,6 @@ CONFIG_PATH=/data/options.json
 HVAC_HOST=$(jq -r ".hvac_host" $CONFIG_PATH)
 MQTT_BROKER_URL=$(jq -r ".mqtt.broker_url" $CONFIG_PATH)
 MQTT_TOPIC_PREFIX=$(jq -r ".mqtt.topic_prefix" $CONFIG_PATH)
-if [ "$MQTT_TOPIC_PREFIX" = null ]; then
-  MQTT_TOPIC_PREFIX='gree-hvac'
-fi
 MQTT_USERNAME=$(jq -r ".mqtt.username" $CONFIG_PATH)
 MQTT_PASSWORD=$(jq -r ".mqtt.password" $CONFIG_PATH)
 MQTT_RETAIN=$(jq -r ".mqtt.retain" $CONFIG_PATH)
@@ -34,7 +31,10 @@ if [ "$INSTANCES" -gt 1 ]; then
 			--mqtt-topic-prefix="${MQTT_TOPIC_PREFIX}" \
 			--mqtt-username="${MQTT_USERNAME}" \
 			--mqtt-password="${MQTT_PASSWORD}" \
-			--mqtt-retain="${MQTT_RETAIN}"
+			--mqtt-retain="${MQTT_RETAIN}" \
+			--debug \
+        	--homeassistant-mqtt-discovery \
+            --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet
 	done
 	npx pm2 logs /HVAC_/
 else
@@ -48,5 +48,8 @@ else
 		--mqtt-topic-prefix="${MQTT_TOPIC_PREFIX}" \
 		--mqtt-username="${MQTT_USERNAME}" \
 		--mqtt-password="${MQTT_PASSWORD}" \
-		--mqtt-retain="${MQTT_RETAIN}"
+		--mqtt-retain="${MQTT_RETAIN}" \
+		--debug \
+        --homeassistant-mqtt-discovery \
+        --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet
 fi
