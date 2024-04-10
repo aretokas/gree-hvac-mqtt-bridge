@@ -59,5 +59,3 @@ typings/
 
 # Persistent data for docker image with Hass.io addon
 data/
-
-.vscode

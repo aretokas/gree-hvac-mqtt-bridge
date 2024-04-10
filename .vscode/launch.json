@@ -1,0 +1,62 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "HA Discovery, Default MQTT Topic",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/index.js",
+            "args": [
+                "--hvac-host=192.168.99.198",
+                "--mqtt-broker-url=mqtt://192.168.99.212/",
+                "--mqtt-username=gree",
+                "--mqtt-password=household0-virtual-stack",
+                "--mqtt-retain",
+                "--debug",
+                "--homeassistant-mqtt-discovery",
+                "--homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "No HA Discovery, Default MQTT Topic",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/index.js",
+            "args": [
+                "--hvac-host=192.168.99.198",
+                "--mqtt-broker-url=mqtt://192.168.99.212/",
+                "--mqtt-username=gree",
+                "--mqtt-password=household0-virtual-stack",
+                "--mqtt-retain",
+                "--debug"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "No HA Discovery, MQTT Topic Set",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/index.js",
+            "args": [
+                "--hvac-host=192.168.99.198",
+                "--mqtt-broker-url=mqtt://192.168.99.212/",
+                "--mqtt-topic-prefix=home/bedroom/gree-ac",
+                "--mqtt-username=gree",
+                "--mqtt-password=household0-virtual-stack",
+                "--mqtt-retain",
+                "--debug"
+            ]
+        }
+    ]
+}
