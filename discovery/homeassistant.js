@@ -104,6 +104,11 @@ class HOMEASSISTANT_DISCOVERY{
             'fan_mode_command_topic':     this.mqttDeviceTopic + "/fanspeed/set",
             'swing_mode_state_topic':     this.mqttDeviceTopic + "/swingvert/get",
             'swing_mode_command_topic':   this.mqttDeviceTopic + "/swingvert/set",
+            //TODO: Command Line and Options File
+            'current_temperature_topic': "zigbee2mqtt/Bedroom Climate Sensor",
+            'current_temperature_template': "{{ value_json.temperature }}",
+            'current_humidity_topic': "zigbee2mqtt/Bedroom Climate Sensor",
+            'current_humidity_template': "{{ value_json.humidity }}",
 
             'modes': ['off', ...Object.keys(commands.mode.value)],
             'fan_modes': Object.keys(commands.fanSpeed.value),
