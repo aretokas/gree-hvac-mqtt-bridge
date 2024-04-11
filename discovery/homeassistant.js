@@ -12,26 +12,26 @@ const commands = require('../app/commandEnums')
  * @param {object} [options.mqttPubOptions]
  * @param {number} [options.mqttPubInterval]
  */
-class HOMEASSISTANT_DISCOVERY{
-    constructor (options) {
+class HOMEASSISTANT_DISCOVERY {
+    constructor(options) {
         this.debug = options.debug || false
 
-        if(!options.device_mac || !options.device_name || !options.mqttClient || !options.mqttDeviceTopic)
+        if (!options.device_mac || !options.device_name || !options.mqttClient || !options.mqttDeviceTopic)
             throw '[HOMEASSISTANT_DISCOVERY][Fatal] Missing required parameter.'
         this.device_mac = options.device_mac
         this.device_name = options.device_name
         this.device_temperatureUnit = options.device_temperatureUnit || undefined
-        
+
         this.mqttClient = options.mqttClient
         this.mqttDeviceTopic = options.mqttDeviceTopic
         this.mqttPubOptions = options.mqttPubOptions || {}
-        this.mqttPubInterval = options.mqttPubInterval*1000 || 600*1000
+        this.mqttPubInterval = options.mqttPubInterval * 1000 || 600 * 1000
 
         this.unique_id = 'gree_' + this.device_mac
 
         this.DEVMSG = {
             device: {
-                identifiers: [this.device_mac.replace(/..\B/g, '$&:'),this.unique_id],
+                identifiers: [this.device_mac.replace(/..\B/g, '$&:'), this.unique_id],
                 manufacturer: 'Gree',
                 name: this.device_name,
                 connections: [['mac', this.device_mac.replace(/..\B/g, '$&:')]]
@@ -43,18 +43,18 @@ class HOMEASSISTANT_DISCOVERY{
         this.enabledCommands = []
     }
 
-    REGISTER(commands){
+    REGISTER(commands) {
         const default_commands = ['climate']
         this._register_climate(this.device_temperatureUnit)
         this.enabledCommands.push('climate')
 
-        if(commands)
-            for(let cmd of commands){
-                if(default_commands.includes(cmd)){
+        if (commands)
+            for (let cmd of commands) {
+                if (default_commands.includes(cmd)) {
                     console.log("[HOMEASSISTANT_DISCOVERY][Notice] %s is an command that is enabled by default, skipped.")
                     continue
                 }
-                if(!this.allowCommands.includes(cmd)){
+                if (!this.allowCommands.includes(cmd)) {
                     console.log("[HOMEASSISTANT_DISCOVERY][Warning] %s is a disallowed command, skipped.")
                     continue
                 }
@@ -65,25 +65,25 @@ class HOMEASSISTANT_DISCOVERY{
         console.log("[HOMEASSISTANT_DISCOVERY] %s registered.", this.enabledCommands.join(','))
     }
 
-    REGISTER_ALL(){
+    REGISTER_ALL() {
         this.REGISTER(this.allowCommands)
     }
 
-    _interval_register(fn){
+    _interval_register(fn) {
         this.registered.push(setInterval(fn.bind(this), this.mqttPubInterval))
     }
 
-    _publish(msg, component, entity){
-        const entityName = entity ? '_'+entity : ''
+    _publish(msg, component, entity) {
+        const entityName = entity ? '_' + entity : ''
 
-        let fn;(fn = () => {
+        let fn; (fn = () => {
             this.mqttClient.publish(
                 'homeassistant/' + component + '/' + this.unique_id + entityName + '/config',
                 JSON.stringify(Object.assign({
                     'unique_id': this.unique_id + entityName,
                     'object_id': this.unique_id + entityName
                 }, this.DEVMSG, msg)),
-                Object.assign({}, this.mqttPubOptions, {retain: true})
+                Object.assign({}, this.mqttPubOptions, { retain: true })
             )
         })()
         this._interval_register(fn)
@@ -91,19 +91,19 @@ class HOMEASSISTANT_DISCOVERY{
     }
 
     //Register Climate
-    _register_climate(temperatureUnit){
+    _register_climate(temperatureUnit) {
         const component = 'climate'
         const DISCOVERY_MSG = {
             'name': 'Climate',
 
-            'temperature_state_topic':    this.mqttDeviceTopic + "/temperature/get",
-            'temperature_command_topic':  this.mqttDeviceTopic + "/temperature/set",
-            'mode_state_topic':           this.mqttDeviceTopic + "/mode/get",
-            'mode_command_topic':         this.mqttDeviceTopic + "/mode/set",
-            'fan_mode_state_topic':       this.mqttDeviceTopic + "/fanspeed/get",
-            'fan_mode_command_topic':     this.mqttDeviceTopic + "/fanspeed/set",
-            'swing_mode_state_topic':     this.mqttDeviceTopic + "/swingvert/get",
-            'swing_mode_command_topic':   this.mqttDeviceTopic + "/swingvert/set",
+            'temperature_state_topic': this.mqttDeviceTopic + "/temperature/get",
+            'temperature_command_topic': this.mqttDeviceTopic + "/temperature/set",
+            'mode_state_topic': this.mqttDeviceTopic + "/mode/get",
+            'mode_command_topic': this.mqttDeviceTopic + "/mode/set",
+            'fan_mode_state_topic': this.mqttDeviceTopic + "/fanspeed/get",
+            'fan_mode_command_topic': this.mqttDeviceTopic + "/fanspeed/set",
+            'swing_mode_state_topic': this.mqttDeviceTopic + "/swingvert/get",
+            'swing_mode_command_topic': this.mqttDeviceTopic + "/swingvert/set",
             //TODO: Command Line and Options File
             'current_temperature_topic': "zigbee2mqtt/Bedroom Climate Sensor",
             'current_temperature_template': "{{ value_json.temperature }}",
@@ -116,65 +116,65 @@ class HOMEASSISTANT_DISCOVERY{
         }
         const DISCOVERY_Optional = {}
 
-        if(temperatureUnit){
+        if (temperatureUnit) {
             const acceptedTemperatureUnits = ['C', 'F']
-            if(acceptedTemperatureUnits.includes(temperatureUnit))
+            if (acceptedTemperatureUnits.includes(temperatureUnit))
                 DISCOVERY_Optional['temperature_unit'] = temperatureUnit
-            else 
+            else
                 console.log("[HOMEASSISTANT_DISCOVERY][Error] Unacceptable temperature unit, ignored.")
         }
 
         this._publish(Object.assign({}, DISCOVERY_MSG, DISCOVERY_Optional), component)
     }
 
-    _register_power(){
+    _register_power() {
         return this.__register_switch('power', 'Power', 'power')
     }
 
-    _register_sleep(){
+    _register_sleep() {
         return this.__register_switch('sleep', 'Sleep Mode', 'power-sleep')
     }
 
-    _register_turbo(){
+    _register_turbo() {
         return this.__register_switch('turbo', 'Turbo Mode', 'car-turbocharger')
     }
 
-    _register_powersave(){
+    _register_powersave() {
         return this.__register_switch('powersave', 'Power Saving Mode', 'sprout')
     }
 
-    _register_health(){
+    _register_health() {
         return this.__register_switch('health', 'Health (Cold plasma) Mode', 'cog-outline')
     }
 
-    _register_lights(){
+    _register_lights() {
         return this.__register_switch('lights', 'Lights', 'lightbulb')
     }
 
-    _register_blow(){
+    _register_blow() {
         return this.__register_switch('blow', 'X-Fan', 'fan')
     }
 
-    _register_quiet_as_switch(){
+    _register_quiet_as_switch() {
         return this.__register_switch('quiet', 'Quiet', 'volume-off')
     }
 
-    _register_quiet(){
-        return this.__register_select('quier', 'Quiet', {
+    _register_quiet() {
+        return this.__register_select('quiet', 'Quiet', {
             'options': Object.keys(commands.quiet.value),
             'command_template': this.__generate_template(commands.quiet.value),
             'value_template': this.__generate_template(commands.quiet.value, 'value')
         }, 'volume-off')
     }
 
-    _register_air(){
+    _register_air() {
         return this.__register_select('air', 'Fresh Air Valve', {
             'options': Object.keys(commands.air.value),
         }, 'sync')
     }
 
     //Common Switch Register
-    __register_switch(entity, name, icon){
+    __register_switch(entity, name, icon) {
         const component = 'switch'
         const DISCOVERY_MSG = {
             'name': name,
@@ -184,12 +184,12 @@ class HOMEASSISTANT_DISCOVERY{
             'payload_off': 0,
             'payload_on': 1,
         }
-        if(icon) DISCOVERY_MSG['icon'] = 'mdi:' + icon
+        if (icon) DISCOVERY_MSG['icon'] = 'mdi:' + icon
         this._publish(DISCOVERY_MSG, component, entity)
     }
 
     //Common Select Register
-    __register_select(entity, name, options, icon){
+    __register_select(entity, name, options, icon) {
         const component = 'select'
         const DISCOVERY_MSG = {
             'name': name,
@@ -197,16 +197,16 @@ class HOMEASSISTANT_DISCOVERY{
             'state_topic': this.mqttDeviceTopic + '/' + entity + '/get',
             'command_topic': this.mqttDeviceTopic + '/' + entity + '/set',
         }
-        if(icon) DISCOVERY_MSG['icon'] = 'mdi:' + icon
+        if (icon) DISCOVERY_MSG['icon'] = 'mdi:' + icon
         this._publish(Object.assign({}, DISCOVERY_MSG, options), component, entity)
     }
 
-    __generate_template(values ,type = 'command'){
-        if(type === 'value')
+    __generate_template(values, type = 'command') {
+        if (type === 'value')
             values = Object.fromEntries(
                 Object
-                  .entries(values)
-                  .map(([key, value]) => [value, key])
+                    .entries(values)
+                    .map(([key, value]) => [value, key])
             )
         let template = `{% set values = ${JSON.stringify(values)} %}\n`
         template += `{% set default="${Object.values(values)[0]}" %}\n`
