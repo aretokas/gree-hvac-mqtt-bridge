@@ -1,6 +1,30 @@
 'use strict'
 
 module.exports = {
+  // get device name
+  name: {
+    code: 'name'
+  },
+  // get device remote host
+  host: {
+    code: 'host'
+  },
+  // get device time
+  time: {
+    code: 'time'
+  },
+  // Heat/Cool Type??
+  heatcooltype: {
+    code: 'HeatCoolType'
+  },
+  // Away Mode / 8 Degree Heating
+  away: {
+    code: 'StHt',
+    value: {
+      off: 0,
+      on: 1
+    }
+  },
   // power state of the device
   power: {
     code: 'Pow',

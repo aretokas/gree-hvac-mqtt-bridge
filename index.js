@@ -92,6 +92,7 @@ const deviceOptions = {
   debug: debug,
   onStatus: (deviceModel, changed) => {
     onStatus(deviceModel, changed)
+    if(changed.time === null)
     console.log('[UDP] Status changed on %s: %s', deviceModel.name, changed)
   },
   onUpdate: (deviceModel, changed) => {
@@ -211,6 +212,9 @@ client.on('message', (topic, message) => {
       case 'turbo':
         device.setTurbo(parseInt(message))
         return
+      case 'heatcooltype':
+        device.setHeatCool(message)
+      return
     }
   }
   console.log('[MQTT] No handler for topic %s', topic)

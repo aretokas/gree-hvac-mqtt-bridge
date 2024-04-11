@@ -324,6 +324,7 @@ class Device {
       else
         state = changedProps[key]
       res[name] = {value: changedProps[key], state}
+      if(name != 'time')
       this.debug && console.log("[UDP][Debug][Status Prepare] %s %s: %s -> %s %s", this.name, this.mac, name, state, changedProps[key])
     }
     return res
@@ -337,6 +338,7 @@ class Device {
      */
   _handleDat (pack) {
     const changed = {}
+    // this.debug && console.log("[UDP][Debug][Dat] %s",pack.cols)
     pack.cols.forEach((col, i) => {
       if(this.props[col] !== pack.dat[i])
         changed[col] = pack.dat[i]
@@ -378,7 +380,26 @@ class Device {
       pack.sub = this.mac
     this.controller._sendRequest(pack)
   };
-
+  /**
+   * Set Time
+   * @param {boolean} value State
+   */
+  setTime (value) {
+    this._sendCommand(
+      [cmd.time.code],
+      [value]
+    )
+  };
+  /**
+     * Set HeatCoolType. Not sure what this does yet.
+     * @param {boolean} value State
+     */
+  setHeatCool (value) {
+    this._sendCommand(
+      [cmd.heatcooltype.code],
+      [value]
+    )
+  };
   /**
      * Turn on/off
      * @param {boolean} value State
