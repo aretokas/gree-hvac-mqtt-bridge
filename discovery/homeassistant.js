@@ -95,7 +95,6 @@ class HOMEASSISTANT_DISCOVERY {
         const component = 'climate'
         const DISCOVERY_MSG = {
             'name': 'Climate',
-
             'temperature_state_topic': this.mqttDeviceTopic + "/temperature/get",
             'temperature_command_topic': this.mqttDeviceTopic + "/temperature/set",
             'mode_state_topic': this.mqttDeviceTopic + "/mode/get",
@@ -167,7 +166,7 @@ class HOMEASSISTANT_DISCOVERY {
         }, 'volume-off')
     }
     _register_swinghor() {
-        return this.__register_select('swingHor', 'Swing: Horizontal', {
+        return this.__register_select('swinghor', 'Swing: Horizontal', {
             'options': Object.keys(commands.swingHor.value),
             'command_template': this.__generate_template(commands.swingHor.value),
             'value_template': this.__generate_template(commands.swingHor.value, 'value')
