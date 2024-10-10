@@ -21,17 +21,17 @@ class Controller {
      * @callback [options.onSetup] Callback function run once device is setup
      * @callback [options.onConnected] Callback function run once connection is established
       */
-  constructor (options) {
+  constructor(options) {
     //  Set defaults
     this.options = {
       host: options.host || '192.168.1.255',
       controllerOnly: options.controllerOnly || false,
       pollingInterval: options.pollingInterval || 3000,
       debug: options.debug || false,
-      onStatus: options.onStatus || function () {},
-      onUpdate: options.onUpdate || function () {},
-      onSetup: options.onSetup || function () {},
-      onConnected: options.onConnected || function () {}
+      onStatus: options.onStatus || function () { },
+      onUpdate: options.onUpdate || function () { },
+      onSetup: options.onSetup || function () { },
+      onConnected: options.onConnected || function () { }
     }
 
     this.debug = this.options.debug
@@ -62,7 +62,7 @@ class Controller {
      * Initialize connection
      * @param {string} address - IP/host address
      */
-  _connectToController (address) {
+  _connectToController(address) {
     try {
       socket.bind(() => {
         const message = Buffer.from(JSON.stringify({ t: 'scan' }))
@@ -89,7 +89,7 @@ class Controller {
      * @param {string} address - IP/host address
      * @param {number} port - Port number
      */
-  _setController (message, pack, address, port) {
+  _setController(message, pack, address, port) {
     this.controller.cid = message.cid
     this.controller.uid = message.uid || 0
     this.controller.mac = pack.mac
@@ -109,7 +109,7 @@ class Controller {
      * @param {string} name - Device name
      * @param {boolean} isSubDev - If this device is a sub device
      */
-  _setDevice (mac, name, isSubDev = false) {
+  _setDevice(mac, name, isSubDev = false) {
     const options = {
       mac,
       name,
@@ -121,7 +121,7 @@ class Controller {
       }
     }
 
-    if(Object.keys(this.controller.devices).includes(mac)) {
+    if (Object.keys(this.controller.devices).includes(mac)) {
       console.log('[UDP] Found a duplicate device: %s %s, skipped.', name, mac)
       return
     }
@@ -133,7 +133,7 @@ class Controller {
   /**
      * Send binding request to controller
      */
-  _sendBindRequest () {
+  _sendBindRequest() {
     const pack = {
       mac: this.controller.mac,
       t: 'bind',
@@ -146,7 +146,7 @@ class Controller {
      * Confirm controller is bound and update controller status on list
      * @param {string} key - Encryption key
      */
-  _confirmBinding (key) {
+  _confirmBinding(key) {
     this.controller.bound = true
     this.controller.key = key
     console.log('[UDP] Controller %s is bound!', this.controller.name)
@@ -155,7 +155,7 @@ class Controller {
   /**
      * Request sub device list
      */
-  _requestSubDevices (i = 0) {
+  _requestSubDevices(i = 0) {
     const pack = {
       mac: this.controller.mac,
       i: i,
@@ -168,7 +168,7 @@ class Controller {
      * Update device status on list
      * @param {Device} device - Device
      */
-  _requestDeviceStatus (device) {
+  _requestDeviceStatus(device) {
     const pack = {
       cols: Object.keys(cmd).map(key => cmd[key].code),
       mac: device.mac,
@@ -184,7 +184,7 @@ class Controller {
      * @param {string} rinfo.address IP/host address
      * @param {number} rinfo.port Port number
      */
-  _handleResponse (msg, rinfo) {
+  _handleResponse(msg, rinfo) {
     const message = JSON.parse(msg + '')
 
     // Extract encrypted package from message using device key (if available)
@@ -202,29 +202,29 @@ class Controller {
     if (type.toLowerCase() === 'bindok') {
       this._confirmBinding(pack.key)
       this.options.onConnected(this.controller)
-      if(!this.options.controllerOnly)
+      if (!this.options.controllerOnly)
         this._setDevice(this.controller.mac, this.controller.name)
-      if(this.controller.subCnt>=1)
+      if (this.controller.subCnt >= 1)
         this._requestSubDevices()
       return
     }
 
     // If package type is subDev list
-    if (type === 'subList'){
-      for(let device of pack.list)
+    if (type === 'subList') {
+      for (let device of pack.list)
         this._setDevice(device.mac, device.name, true)
       let count = 0
-      for(let device of Object.values(this.controller.devices))
-        if(device.isSubDev)
+      for (let device of Object.values(this.controller.devices))
+        if (device.isSubDev)
           count++
-      if(count<this.controller.subCnt)
+      if (count < this.controller.subCnt)
         this._requestSubDevices(pack.i + 1)
       return
     }
 
     // If package type is device status
     if (type === 'dat' && this.controller.bound) {
-      if(Object.keys(this.controller.devices).includes(pack.mac))
+      if (Object.keys(this.controller.devices).includes(pack.mac))
         this.controller.devices[pack.mac]._handleDat(pack)
       else
         console.log('[UDP] Received dat message for unknown device %s: %s, %s', pack.mac, message, pack)
@@ -233,7 +233,7 @@ class Controller {
 
     // If package type is response, update device properties
     if (type === 'res' && this.controller.bound) {
-      if(Object.keys(this.controller.devices).includes(pack.mac))
+      if (Object.keys(this.controller.devices).includes(pack.mac))
         this.controller.devices[pack.mac]._handleRes(pack)
       else
         console.log('[UDP] Received res message for unknown device %s: %s, %s', pack.mac, message, pack)
@@ -248,7 +248,7 @@ class Controller {
      * @param {object} pack
      * @param {number} i
      */
-  _sendRequest (pack, i = 0) {
+  _sendRequest(pack, i = 0) {
     const encryptedPack = encryptionService.encrypt(pack, this.controller.key)
     const request = {
       cid: 'app',
@@ -281,7 +281,7 @@ class Device {
      * @param {function} [options.callbacks.onUpdate] Callback function run after command
      * @param {function} [options.callbacks.onSetup] Callback function run once device is setup
       */
-  constructor (parent, options) {
+  constructor(parent, options) {
 
     this.controller = parent
     this.isSubDev = options.isSubDev
@@ -301,7 +301,7 @@ class Device {
     // Wait props update, then call onSetup
     let waiting;
     (waiting = () => {
-      if(Object.keys(this.props).length > 0){
+      if (Object.keys(this.props).length > 0) {
         this.callbacks.onSetup(this)
         return
       }
@@ -310,22 +310,22 @@ class Device {
 
   }
 
-  _prepareCallback (changedProps) {
+  _prepareCallback(changedProps) {
     const res = {}
-    for(let key in changedProps){
+    for (let key in changedProps) {
       let name = Object.keys(cmd).find(k => cmd[k].code === key)
       let state
-      if(!name){
+      if (!name) {
         this.debug && console.log("[UDP][Debug][prepareCallback] Unknown Prop Name %s: %s", key, changedProps)
         continue
       }
-      if(cmd[name].value)
+      if (cmd[name].value)
         state = Object.keys(cmd[name].value).find(k => cmd[name].value[k] === changedProps[key])
       else
         state = changedProps[key]
-      res[name] = {value: changedProps[key], state}
-      if(name != 'time')
-      this.debug && console.log("[UDP][Debug][Status Prepare] %s %s: %s -> %s %s", this.name, this.mac, name, state, changedProps[key])
+      res[name] = { value: changedProps[key], state }
+      if (name != 'time')
+        this.debug && console.log("[UDP][Debug][Status Prepare] %s %s: %s -> %s %s", this.name, this.mac, name, state, changedProps[key])
     }
     return res
   }
@@ -336,15 +336,15 @@ class Device {
      * @param {string[]} [pack.cols]
      * @param {number[]} [pack.dat]
      */
-  _handleDat (pack) {
+  _handleDat(pack) {
     const changed = {}
     // this.debug && console.log("[UDP][Debug][Dat] %s",pack.cols)
     pack.cols.forEach((col, i) => {
-      if(this.props[col] !== pack.dat[i])
+      if (this.props[col] !== pack.dat[i])
         changed[col] = pack.dat[i]
       this.props[col] = pack.dat[i]
     })
-    if(Object.keys(changed).length > 0)
+    if (Object.keys(changed).length > 0)
       this.callbacks.onStatus(this, this._prepareCallback(changed))
     return
   }
@@ -355,7 +355,7 @@ class Device {
      * @param {string[]} [pack.opt]
      * @param {number[]} [pack.val]
      */
-  _handleRes (pack) {
+  _handleRes(pack) {
     const changed = {}
     pack.opt.forEach((opt, i) => {
       changed[opt] = pack.val[i]
@@ -370,21 +370,21 @@ class Device {
      * @param {string[]} commands List of commands
      * @param {number[]} values List of values
      */
-  _sendCommand (commands = [], values = []) {
+  _sendCommand(commands = [], values = []) {
     const pack = {
       opt: commands,
       p: values,
       t: 'cmd'
     }
-    if(this.isSubDev)
+    if (this.isSubDev)
       pack.sub = this.mac
     this.controller._sendRequest(pack)
   };
   /**
    * Set Time
-   * @param {boolean} value State
+   * @param {string} value Time
    */
-  setTime (value) {
+  setTime(value) {
     this._sendCommand(
       [cmd.time.code],
       [value]
@@ -394,7 +394,7 @@ class Device {
      * Set HeatCoolType. Not sure what this does yet.
      * @param {boolean} value State
      */
-  setHeatCool (value) {
+  setHeatCool(value) {
     this._sendCommand(
       [cmd.heatcooltype.code],
       [value]
@@ -404,7 +404,7 @@ class Device {
      * Turn on/off
      * @param {boolean} value State
      */
-  setPower (value) {
+  setPower(value) {
     this._sendCommand(
       [cmd.power.code],
       [value ? 1 : 0]
@@ -416,7 +416,7 @@ class Device {
      * @param {number} value Temperature
      * @param {number} [unit=0] Units (defaults to Celsius)
      */
-  setTemp (value, unit = cmd.temperatureUnit.value.celsius) {
+  setTemp(value, unit = cmd.temperatureUnit.value.celsius) {
     this._sendCommand(
       /**
        * On my device, the return value is fine but the actual temperature does not change.
@@ -435,7 +435,7 @@ class Device {
      * Set mode
      * @param {number} value Mode value (0-4)
      */
-  setMode (value) {
+  setMode(value) {
     this._sendCommand(
       [cmd.mode.code],
       [value]
@@ -446,7 +446,7 @@ class Device {
      * Set fan speed
      * @param {number} value Fan speed value (0-5)
      */
-  setFanSpeed (value) {
+  setFanSpeed(value) {
     this._sendCommand(
       [cmd.fanSpeed.code],
       [value]
@@ -457,7 +457,7 @@ class Device {
      * Set horizontal swing
      * @param {number} value Horizontal swing value (0-7)
      */
-  setSwingHor (value) {
+  setSwingHor(value) {
     this._sendCommand(
       [cmd.swingHor.code],
       [value]
@@ -468,7 +468,7 @@ class Device {
      * Set vertical swing
      * @param {number} value Vertical swing value (0-11)
      */
-  setSwingVert (value) {
+  setSwingVert(value) {
     this._sendCommand(
       [cmd.swingVert.code],
       [value]
@@ -479,7 +479,7 @@ class Device {
      * Set power save mode
      * @param {boolean} value on/off
      */
-  setPowerSave (value) {
+  setPowerSave(value) {
     this._sendCommand(
       [cmd.powerSave.code],
       [value ? 1 : 0]
@@ -490,7 +490,7 @@ class Device {
      * Set lights on/off
      * @param {boolean} value on/off
      */
-  setLights (value) {
+  setLights(value) {
     this._sendCommand(
       [cmd.lights.code],
       [value ? 1 : 0]
@@ -501,7 +501,7 @@ class Device {
      * Set health mode
      * @param {boolean} value on/off
      */
-  setHealthMode (value) {
+  setHealthMode(value) {
     this._sendCommand(
       [cmd.health.code],
       [value ? 1 : 0]
@@ -512,7 +512,7 @@ class Device {
      * Set quiet mode
      * @param {boolean} value on/off
      */
-  setQuietMode (value) {
+  setQuietMode(value) {
     this._sendCommand(
       [cmd.quiet.code],
       [value]
@@ -523,7 +523,7 @@ class Device {
      * Set blow mode
      * @param {boolean} value on/off
      */
-  setBlow (value) {
+  setBlow(value) {
     this._sendCommand(
       [cmd.blow.code],
       [value ? 1 : 0]
@@ -534,7 +534,7 @@ class Device {
      * Set air valve mode
      * @param {boolean} value on/off
      */
-  setAir (value) {
+  setAir(value) {
     this._sendCommand(
       [cmd.air.code],
       [value]
@@ -545,7 +545,7 @@ class Device {
      * Set sleep mode
      * @param {boolean} value on/off
      */
-  setSleepMode (value) {
+  setSleepMode(value) {
     this._sendCommand(
       [cmd.sleep.code],
       [value ? 1 : 0]
@@ -556,7 +556,7 @@ class Device {
      * Set turbo mode
      * @param {boolean} value on/off
      */
-  setTurbo (value) {
+  setTurbo(value) {
     this._sendCommand(
       [cmd.turbo.code],
       [value ? 1 : 0]

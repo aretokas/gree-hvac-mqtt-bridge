@@ -1,6 +1,10 @@
 'use strict'
 
 module.exports = {
+  // Temp Sensor
+  currenttemp: {
+    code: 'TemSen'
+  },
   // get device name
   name: {
     code: 'name'

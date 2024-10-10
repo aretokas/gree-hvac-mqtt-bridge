@@ -39,7 +39,7 @@ class HOMEASSISTANT_DISCOVERY {
         }
 
         this.registered = []
-        this.allowCommands = ['climate', 'power', 'sleep', 'turbo', 'powersave', 'health', 'lights', 'blow', 'quiet', 'quiet_as_switch', 'air']
+        this.allowCommands = ['climate', 'power', 'sleep', 'turbo', 'powersave', 'health', 'lights', 'blow', 'quiet', 'quiet_as_switch', 'swinghor', 'air']
         this.enabledCommands = []
     }
 
@@ -105,9 +105,9 @@ class HOMEASSISTANT_DISCOVERY {
             'swing_mode_state_topic': this.mqttDeviceTopic + "/swingvert/get",
             'swing_mode_command_topic': this.mqttDeviceTopic + "/swingvert/set",
             //TODO: Command Line and Options File
-            'current_temperature_topic': "zigbee2mqtt/Bedroom Climate Sensor",
+            'current_temperature_topic': "zigbee2mqtt/Bedroom\\Climate",
             'current_temperature_template': "{{ value_json.temperature }}",
-            'current_humidity_topic': "zigbee2mqtt/Bedroom Climate Sensor",
+            'current_humidity_topic': "zigbee2mqtt/Bedroom\\Climate",
             'current_humidity_template': "{{ value_json.humidity }}",
 
             'modes': ['off', ...Object.keys(commands.mode.value)],
@@ -166,7 +166,13 @@ class HOMEASSISTANT_DISCOVERY {
             'value_template': this.__generate_template(commands.quiet.value, 'value')
         }, 'volume-off')
     }
-
+    _register_swinghor() {
+        return this.__register_select('swingHor', 'Swing: Horizontal', {
+            'options': Object.keys(commands.swingHor.value),
+            'command_template': this.__generate_template(commands.swingHor.value),
+            'value_template': this.__generate_template(commands.swingHor.value, 'value')
+        }, 'arrow-oscillating')
+    }
     _register_air() {
         return this.__register_select('air', 'Fresh Air Valve', {
             'options': Object.keys(commands.air.value),
