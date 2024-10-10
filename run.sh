@@ -34,7 +34,7 @@ if [ "$INSTANCES" -gt 1 ]; then
 			--mqtt-retain="${MQTT_RETAIN}" \
 			--debug \
         	--homeassistant-mqtt-discovery \
-            --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet
+            --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet,swinghor
 	done
 	npx pm2 logs /HVAC_/
 else
@@ -51,5 +51,5 @@ else
 		--mqtt-retain="${MQTT_RETAIN}" \
 		--debug \
         --homeassistant-mqtt-discovery \
-        --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet
+        --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet,swinghor
 fi
