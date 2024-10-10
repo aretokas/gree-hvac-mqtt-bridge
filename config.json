@@ -16,7 +16,6 @@
     "init": true,
     "hassio_api": true,
     "hassio_role": "default",
-    "discovery": "mqtt",
     "options": {
         "mqtt": {
             "broker_url": "mqtt://localhost",
