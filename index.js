@@ -89,6 +89,8 @@ const deviceOptions = {
   host: argv['hvac-host'],
   controllerOnly: argv['controllerOnly'] ? true : false,
   pollingInterval: parseInt(argv['polling-interval']) * 1000 || 3000,
+  autoLights: (argv['auto-lights'] === 'false') ? false : true,
+  autoXFan: (argv['auto-xfan'] === 'false') ? false : true,
   debug: debug,
   onStatus: (deviceModel, changed) => {
     onStatus(deviceModel, changed)
@@ -178,6 +180,10 @@ client.on('message', (topic, message) => {
           if (device.props[commands.power.code] === commands.power.value.off)
             device.setPower(commands.power.value.on)
           device.setMode(commands.mode.value[message])
+          if ((message === 'cool' || message === 'dry') && device.autoXFan) {
+            device.debug && console.log('[DEBUG] Auto X-Fan Set')
+            device.setBlow(commands.blow.value.on)
+          }
         }
         return
       case 'fanspeed':
@@ -211,6 +217,16 @@ client.on('message', (topic, message) => {
         return
       case 'quiet':
         device.setQuietMode(parseInt(message))
+        if (device.autoLights) {
+          device.debug && console.log('[DEBUG] Auto Lights Set on Quiet -> ' + message)
+          if (message == commands.quiet.value.off) {
+            device.debug && console.log('[DEBUG] Auto Lights ON')
+            device.setLights(commands.lights.value.on)
+          } else {
+            device.debug && console.log('[DEBUG] Auto Lights OFF')
+            device.setLights(commands.lights.value.off)
+          }
+        }
         return
       case 'blow':
         device.setBlow(parseInt(message))
@@ -220,6 +236,16 @@ client.on('message', (topic, message) => {
         return
       case 'sleep':
         device.setSleepMode(parseInt(message))
+        if (device.autoLights) {
+          device.debug && console.log('[DEBUG] Auto Lights Set on Sleep -> ' + message)
+          if (message == commands.sleep.value.on) {
+            device.debug && console.log('[DEBUG] Auto Lights OFF')
+            device.setLights(commands.lights.value.off)
+          } else {
+            device.debug && console.log('[DEBUG] Auto Lights ON')
+            device.setLights(commands.lights.value.on)
+          }
+        }
         return
       case 'turbo':
         device.setTurbo(parseInt(message))

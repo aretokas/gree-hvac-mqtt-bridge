@@ -13,6 +13,8 @@ class Controller {
      * Create controller model and establish UDP connection with remote host
      * @param {object} [options] Options
      * @param {string} [options.address] HVAC IP address
+     * @param {boolean} [options.autoLights] Automatically turn off lights if Quiet or Sleep mode set.
+     * @param {boolean} [options.autoXFan] Automatically enable X-Fan if cool or dry mode is selected.
      * @param {boolean} [options.controllerOnly] Whether to just a controller, does not contain functions (usually VRF)
      * @param {number} [options.pollingInterval] Interval to poll the device for status (unit: ms)
      * @param {boolean} [options.debug] Whether to output debug information
@@ -27,6 +29,8 @@ class Controller {
       host: options.host || '192.168.1.255',
       controllerOnly: options.controllerOnly || false,
       pollingInterval: options.pollingInterval || 3000,
+      autoLights: options.autoLights || true,
+      autoXFan: options.autoXFan || true,
       debug: options.debug || false,
       onStatus: options.onStatus || function () { },
       onUpdate: options.onUpdate || function () { },
@@ -109,11 +113,13 @@ class Controller {
      * @param {string} name - Device name
      * @param {boolean} isSubDev - If this device is a sub device
      */
-  _setDevice(mac, name, isSubDev = false) {
+  _setDevice(mac, name, isSubDev = false, autoLights = true, autoXFan = true) {
     const options = {
       mac,
       name,
       isSubDev,
+      autoLights,
+      autoXFan,
       callbacks: {
         onStatus: this.options.onStatus,
         onUpdate: this.options.onUpdate,
@@ -203,7 +209,7 @@ class Controller {
       this._confirmBinding(pack.key)
       this.options.onConnected(this.controller)
       if (!this.options.controllerOnly)
-        this._setDevice(this.controller.mac, this.controller.name)
+        this._setDevice(this.controller.mac, this.controller.name, false, this.options.autoLights, this.options.autoXFan)
       if (this.controller.subCnt >= 1)
         this._requestSubDevices()
       return
@@ -286,7 +292,8 @@ class Device {
     this.controller = parent
     this.isSubDev = options.isSubDev
     this.pollingInterval = this.controller.options.pollingInterval
-
+    this.autoLights = options.autoLights
+    this.autoXFan = options.autoXFan
     this.mac = options.mac
     this.name = options.name
     this.callbacks = options.callbacks
