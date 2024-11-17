@@ -42,8 +42,8 @@ else
 	HVAC_HOST=$(jq -r ".devices[0].hvac_host" $CONFIG_PATH);
 	MQTT_TOPIC_PREFIX=$(jq -r ".devices[0].mqtt_topic_prefix" $CONFIG_PATH);
 	ZIGBEE2MQTT_SENSOR_TOPIC=$(jq -r ".devices[0].zigbee2mqtt_sensor_topic" $CONFIG_PATH);
-	AUTO_LIGHTS=$(jq -r ".devices[$i].auto_lights" $CONFIG_PATH);
-	AUTO_XFAN=$(jq -r ".devices[$i].auto_xfan" $CONFIG_PATH);
+	AUTO_LIGHTS=$(jq -r ".devices[0].auto_lights" $CONFIG_PATH);
+	AUTO_XFAN=$(jq -r ".devices[0].auto_xfan" $CONFIG_PATH);
 	echo "Running single instance for $HVAC_HOST"
 	/usr/bin/node index.js \
 		--hvac-host="${HVAC_HOST}" \
