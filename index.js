@@ -163,9 +163,10 @@ client.on('message', (topic, message) => {
       t.unshift(hvac.controller.mac)
     let device = hvac.controller.devices[t[0]]
     switch (t[1]) {
-      case 'time':
-        device.setTime(message)
-        return
+      // No longer need to support setting time as it's dealt with in the power section.
+      //case 'time':
+      //  device.setTime(message)
+      //return
       case 'temperature':
         device.setTemp(parseInt(message))
         return
@@ -190,6 +191,14 @@ client.on('message', (topic, message) => {
         return
       case 'power':
         device.setPower(parseInt(message))
+        var date = new Date();
+        var timeDifference = (Math.abs(date - new Date(device.props.time))) / 1000;  // difference in Seconds
+        var splitDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split("T");
+        var dateString = splitDate[0] + ' ' + splitDate[1].split(".")[0];
+        if (timeDifference > 600) { //set time if greater than 10 minute difference.
+          device.debug && console.log('[DEBUG] Time Check: %s -> %s -> %s', device.props.time, timeDifference, dateString)
+          device.setTime(dateString)
+        }
         return
       case 'health':
         device.setHealthMode(parseInt(message))
