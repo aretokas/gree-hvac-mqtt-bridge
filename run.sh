@@ -20,6 +20,8 @@ if [ "$INSTANCES" -gt 1 ]; then
 		HVAC_HOST=$(jq -r ".devices[$i].hvac_host" $CONFIG_PATH);
 		MQTT_TOPIC_PREFIX=$(jq -r ".devices[$i].mqtt_topic_prefix" $CONFIG_PATH);
 		ZIGBEE2MQTT_SENSOR_TOPIC=$(jq -r ".devices[$i].zigbee2mqtt_sensor_topic" $CONFIG_PATH);
+		AUTO_LIGHTS=$(jq -r ".devices[$i].auto_lights" $CONFIG_PATH);
+		AUTO_XFAN=$(jq -r ".devices[$i].auto_xfan" $CONFIG_PATH);
 		if [[ $HVAC_HOST = null ]]; then echo "[ERROR] Missing hvac_host for device $i. Skipping." && continue; fi
 		echo "Running instance $i for $HVAC_HOST"
 		npx pm2 start index.js --silent -m --merge-logs --name="HVAC_${i}" -- \
@@ -40,6 +42,8 @@ else
 	HVAC_HOST=$(jq -r ".devices[0].hvac_host" $CONFIG_PATH);
 	MQTT_TOPIC_PREFIX=$(jq -r ".devices[0].mqtt_topic_prefix" $CONFIG_PATH);
 	ZIGBEE2MQTT_SENSOR_TOPIC=$(jq -r ".devices[0].zigbee2mqtt_sensor_topic" $CONFIG_PATH);
+	AUTO_LIGHTS=$(jq -r ".devices[$i].auto_lights" $CONFIG_PATH);
+	AUTO_XFAN=$(jq -r ".devices[$i].auto_xfan" $CONFIG_PATH);
 	echo "Running single instance for $HVAC_HOST"
 	/usr/bin/node index.js \
 		--hvac-host="${HVAC_HOST}" \
