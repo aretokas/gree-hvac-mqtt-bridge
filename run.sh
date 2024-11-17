@@ -19,6 +19,7 @@ if [ "$INSTANCES" -gt 1 ]; then
 	for i in $(seq 0 $(($INSTANCES - 1))); do
 		HVAC_HOST=$(jq -r ".devices[$i].hvac_host" $CONFIG_PATH);
 		MQTT_TOPIC_PREFIX=$(jq -r ".devices[$i].mqtt_topic_prefix" $CONFIG_PATH);
+		ZIGBEE2MQTT_SENSOR_TOPIC=$(jq -r ".devices[$i].zigbee2mqtt_sensor_topic" $CONFIG_PATH);
 		if [[ $HVAC_HOST = null ]]; then echo "[ERROR] Missing hvac_host for device $i. Skipping." && continue; fi
 		echo "Running instance $i for $HVAC_HOST"
 		npx pm2 start index.js --silent -m --merge-logs --name="HVAC_${i}" -- \
@@ -30,14 +31,15 @@ if [ "$INSTANCES" -gt 1 ]; then
 			--mqtt-retain="${MQTT_RETAIN}" \
 			--auto-lights="${AUTO_LIGHTS}" \
 			--auto-xfan="${AUTO_XFAN}" \
-			--debug \
         	--homeassistant-mqtt-discovery \
-            --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet,swinghor
+            --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet,swinghor \
+			--zigbee2mqtt-sensor-topic="${ZIGBEE2MQTT_SENSOR_TOPIC}"
 	done
 	npx pm2 logs /HVAC_/
 else
 	HVAC_HOST=$(jq -r ".devices[0].hvac_host" $CONFIG_PATH);
 	MQTT_TOPIC_PREFIX=$(jq -r ".devices[0].mqtt_topic_prefix" $CONFIG_PATH);
+	ZIGBEE2MQTT_SENSOR_TOPIC=$(jq -r ".devices[0].zigbee2mqtt_sensor_topic" $CONFIG_PATH);
 	echo "Running single instance for $HVAC_HOST"
 	/usr/bin/node index.js \
 		--hvac-host="${HVAC_HOST}" \
@@ -48,7 +50,7 @@ else
 		--mqtt-retain="${MQTT_RETAIN}" \
 		--auto-lights="${AUTO_LIGHTS}" \
 		--auto-xfan="${AUTO_XFAN}" \
-		--debug \
         --homeassistant-mqtt-discovery \
-        --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet,swinghor
+        --homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet,swinghor \
+		--zigbee2mqtt-sensor-topic="${ZIGBEE2MQTT_SENSOR_TOPIC}"
 fi

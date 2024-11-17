@@ -15,6 +15,7 @@ class Controller {
      * @param {string} [options.address] HVAC IP address
      * @param {boolean} [options.autoLights] Automatically turn off lights if Quiet or Sleep mode set.
      * @param {boolean} [options.autoXFan] Automatically enable X-Fan if cool or dry mode is selected.
+     * @param {string} [options.z2m_sensor_topic] Automatically enable X-Fan if cool or dry mode is selected.
      * @param {boolean} [options.controllerOnly] Whether to just a controller, does not contain functions (usually VRF)
      * @param {number} [options.pollingInterval] Interval to poll the device for status (unit: ms)
      * @param {boolean} [options.debug] Whether to output debug information
@@ -31,6 +32,7 @@ class Controller {
       pollingInterval: options.pollingInterval || 3000,
       autoLights: options.autoLights || true,
       autoXFan: options.autoXFan || true,
+      z2m_sensor_topic: options.z2m_sensor_topic || '',
       debug: options.debug || false,
       onStatus: options.onStatus || function () { },
       onUpdate: options.onUpdate || function () { },
@@ -113,13 +115,14 @@ class Controller {
      * @param {string} name - Device name
      * @param {boolean} isSubDev - If this device is a sub device
      */
-  _setDevice(mac, name, isSubDev = false, autoLights = true, autoXFan = true) {
+  _setDevice(mac, name, isSubDev = false, autoLights = true, autoXFan = true, z2m_sensor_topic = "") {
     const options = {
       mac,
       name,
       isSubDev,
       autoLights,
       autoXFan,
+      z2m_sensor_topic,
       callbacks: {
         onStatus: this.options.onStatus,
         onUpdate: this.options.onUpdate,
@@ -209,7 +212,7 @@ class Controller {
       this._confirmBinding(pack.key)
       this.options.onConnected(this.controller)
       if (!this.options.controllerOnly)
-        this._setDevice(this.controller.mac, this.controller.name, false, this.options.autoLights, this.options.autoXFan)
+        this._setDevice(this.controller.mac, this.controller.name, false, this.options.autoLights, this.options.autoXFan, this.options.z2m_sensor_topic)
       if (this.controller.subCnt >= 1)
         this._requestSubDevices()
       return
@@ -281,6 +284,9 @@ class Device {
      * @param {object} [options] Options
      * @param {string} [options.mac] device mac address
      * @param {string} [options.name] device name
+     * @param {boolean} [options.autoLights] Automatically turn off lights if Quiet or Sleep mode set.
+     * @param {boolean} [options.autoXFan] Automatically enable X-Fan if cool or dry mode is selected.
+     * @param {string} [options.z2m_sensor_topic] MQTT Topic for retrieving current humidity.
      * @param {boolean} [options.isSubDev] if this device is a sub device
      * @param {object} [options.callbacks] Callback functions
      * @param {function} [options.callbacks.onStatus] Callback function run on each status update
@@ -294,6 +300,7 @@ class Device {
     this.pollingInterval = this.controller.options.pollingInterval
     this.autoLights = options.autoLights
     this.autoXFan = options.autoXFan
+    this.z2m_sensor_topic = options.z2m_sensor_topic
     this.mac = options.mac
     this.name = options.name
     this.callbacks = options.callbacks

@@ -43,7 +43,8 @@
                 "hvac_host": "str",
                 "auto_lights": "bool?",
                 "auto_xfan": "bool?",
-                "mqtt_topic_prefix": "str"
+                "mqtt_topic_prefix": "str",
+                "zigbee2mqtt_sensor_topic": "str?"
             }
         ]
     }

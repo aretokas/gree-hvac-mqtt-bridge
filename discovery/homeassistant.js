@@ -21,7 +21,7 @@ class HOMEASSISTANT_DISCOVERY {
         this.device_mac = options.device_mac
         this.device_name = options.device_name
         this.device_temperatureUnit = options.device_temperatureUnit || undefined
-
+        this.z2m_sensor_topic = options.z2m_sensor_topic || ''
         this.mqttClient = options.mqttClient
         this.mqttDeviceTopic = options.mqttDeviceTopic
         this.mqttPubOptions = options.mqttPubOptions || {}
@@ -103,10 +103,9 @@ class HOMEASSISTANT_DISCOVERY {
             'fan_mode_command_topic': this.mqttDeviceTopic + "/fanspeed/set",
             'swing_mode_state_topic': this.mqttDeviceTopic + "/swingvert/get",
             'swing_mode_command_topic': this.mqttDeviceTopic + "/swingvert/set",
-            //TODO: Command Line and Options File
-            'current_temperature_topic': "zigbee2mqtt/Bedroom/Climate",
+            'current_temperature_topic': this.z2m_sensor_topic,
             'current_temperature_template': "{{ value_json.temperature }}",
-            'current_humidity_topic': "zigbee2mqtt/Bedroom/Climate",
+            'current_humidity_topic': this.z2m_sensor_topic,
             'current_humidity_template': "{{ value_json.humidity }}",
 
             'modes': ['off', ...Object.keys(commands.mode.value)],

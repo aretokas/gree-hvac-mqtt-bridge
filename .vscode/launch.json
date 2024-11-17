@@ -22,7 +22,8 @@
                 "--mqtt-retain",
                 "--debug",
                 "--homeassistant-mqtt-discovery",
-                "--homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet"
+                "--homeassistant-mqtt-discovery-enable=sleep,turbo,powersave,lights,blow,quiet",
+                "--zigbee2mqtt-sensor-topic=zigbee2mqtt/Bedroom/Climate"
             ]
         },
         {

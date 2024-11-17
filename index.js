@@ -74,6 +74,7 @@ const onSetup = function (deviceModel) {
         .find(k => commands.temperatureUnit.value[k] === deviceModel.props[commands.temperatureUnit.code])
         .substring(0, 1)
         .toUpperCase(),
+      z2m_sensor_topic: deviceModel.z2m_sensor_topic,
       mqttClient: client,
       mqttDeviceTopic: mqttTopicPrefix + deviceModel.mac,
       mqttPubOptions: pubmqttOptions
@@ -91,6 +92,7 @@ const deviceOptions = {
   pollingInterval: parseInt(argv['polling-interval']) * 1000 || 3000,
   autoLights: (argv['auto-lights'] === 'false') ? false : true,
   autoXFan: (argv['auto-xfan'] === 'false') ? false : true,
+  z2m_sensor_topic: argv['zigbee2mqtt-sensor-topic'] || '',
   debug: debug,
   onStatus: (deviceModel, changed) => {
     onStatus(deviceModel, changed)
