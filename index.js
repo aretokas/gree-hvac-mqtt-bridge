@@ -95,11 +95,11 @@ const deviceOptions = {
   onStatus: (deviceModel, changed) => {
     onStatus(deviceModel, changed)
     if (changed.time === null)
-      console.log('[UDP] Status changed on %s: %s', deviceModel.name, changed)
+      console.log('[UDP] Status changed on %s: %s', deviceModel.name, JSON.stringify(changed))
   },
   onUpdate: (deviceModel, changed) => {
     onStatus(deviceModel, changed)
-    console.log('[UDP] Status updated on %s: %s', deviceModel.name, changed)
+    console.log('[UDP] Status updated on %s: %s', deviceModel.name, JSON.stringify(changed))
   },
   onSetup: onSetup,
   onConnected: (deviceModel) => {

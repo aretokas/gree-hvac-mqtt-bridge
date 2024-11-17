@@ -196,7 +196,7 @@ class Controller {
     // Extract encrypted package from message using device key (if available)
     const pack = encryptionService.decrypt(message, (this.controller || {}).key)
     const type = pack.t || ''
-
+    this.debug && console.log('[PACK][%s] received from %s:%d', type.toUpperCase(), rinfo.address, rinfo.port)
     // If package type is response to handshake
     if (type === 'dev') {
       this._setController(message, pack, rinfo.address, rinfo.port)
@@ -347,8 +347,10 @@ class Device {
     const changed = {}
     // this.debug && console.log("[UDP][Debug][Dat] %s",pack.cols)
     pack.cols.forEach((col, i) => {
-      if (this.props[col] !== pack.dat[i])
+      if (this.props[col] !== pack.dat[i]) {
         changed[col] = pack.dat[i]
+        col !== 'time' && this.debug && console.log("[DAT][CH] %s: %s -> %s", col, this.props[col], col, pack.dat[i])
+      }
       this.props[col] = pack.dat[i]
     })
     if (Object.keys(changed).length > 0)
@@ -366,6 +368,7 @@ class Device {
     const changed = {}
     pack.opt.forEach((opt, i) => {
       changed[opt] = pack.val[i]
+      this.debug && console.log("[RES][CH] %s: %s -> %s", opt, this.props[opt], pack.val[i])
       this.props[opt] = pack.val[i]
     })
     this.callbacks.onUpdate(this, this._prepareCallback(changed))
