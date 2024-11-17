@@ -217,6 +217,9 @@ client.on('message', (topic, message) => {
         return
       case 'quiet':
         device.setQuietMode(parseInt(message))
+        if (message === commands.quiet.value.off)
+          device.setFanSpeed(commands.fanSpeed.value.auto)
+
         if (device.autoLights) {
           device.debug && console.log('[DEBUG] Auto Lights Set on Quiet -> ' + message)
           if (message == commands.quiet.value.off) {
@@ -234,8 +237,13 @@ client.on('message', (topic, message) => {
       case 'air':
         device.setAir(parseInt(message))
         return
-      case 'sleep':
+      case 'sleep': // TODO: Work out why the device continuously returns "Sleep: 1" no matter what we send for SwhSlp
         device.setSleepMode(parseInt(message))
+        if (message == commands.sleep.value.on)
+          device.setQuietMode(commands.quiet.value.mode1)
+        else
+          device.setQuietMode(commands.quiet.value.off)
+
         if (device.autoLights) {
           device.debug && console.log('[DEBUG] Auto Lights Set on Sleep -> ' + message)
           if (message == commands.sleep.value.on) {

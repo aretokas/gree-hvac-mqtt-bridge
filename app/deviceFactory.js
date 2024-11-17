@@ -558,7 +558,7 @@ class Device {
   setSleepMode(value) {
     this._sendCommand(
       [cmd.sleep.code],
-      [value ? 1 : 0]
+      [value === 1 ? 1 : 0]
     )
   };
 
