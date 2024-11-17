@@ -1,6 +1,34 @@
 'use strict'
 
 module.exports = {
+  // Temp Sensor
+  currenttemp: {
+    code: 'TemSen'
+  },
+  // get device name
+  name: {
+    code: 'name'
+  },
+  // get device remote host
+  host: {
+    code: 'host'
+  },
+  // get device time
+  time: {
+    code: 'time'
+  },
+  // Heat/Cool Type??
+  heatcooltype: {
+    code: 'HeatCoolType'
+  },
+  // Away Mode / 8 Degree Heating
+  away: {
+    code: 'StHt',
+    value: {
+      off: 0,
+      on: 1
+    }
+  },
   // power state of the device
   power: {
     code: 'Pow',
@@ -41,7 +69,8 @@ module.exports = {
       mediumLow: 2, // not available on 3-speed units
       medium: 3,
       mediumHigh: 4, // not available on 3-speed units
-      high: 5
+      high: 5,
+      turbo: 6, //Some new devices use WdSpd:6 instead of Tur:1
     }
   },
   // fresh air valve

@@ -19,15 +19,19 @@ node index.js \
     --mqtt-broker-url="mqtt://localhost" \
     --mqtt-topic-prefix="home/greehvac" \
     --mqtt-username="" \
-    --mqtt-password=""
+    --mqtt-password="" \
+    [--controllerOnly]
 ```
+When the host is only a controller and not an air conditioner, add `controllerOnly` option. VRF is usually the case.
 
 ## Supported commands
 
 MQTT topic scheme:
 
 - `MQTT_TOPIC_PREFIX/COMMAND/get` Get value
+- `MQTT_TOPIC_PREFIX/[SubDev MAC]/COMMAND/get` Get value (accessing sub devices)
 - `MQTT_TOPIC_PREFIX/COMMAND/set` Set value
+- `MQTT_TOPIC_PREFIX/[SubDev MAC]/COMMAND/set` Set value (accessing sub devices)
 
 Note: _boolean_ values are set using 0 or 1
 
@@ -147,7 +151,7 @@ config example:
         "broker_url": "mqtt://localhost",
         "username": "user",
         "password": "pass",
-	"retain": false
+        "retain": false
     },
     "devices": [
       {
@@ -175,13 +179,17 @@ echo -n "{\"psw\": \"YOUR_WIFI_PASSWORD\",\"ssid\": \"YOUR_WIFI_SSID\",\"t\": \"
 Note: This command may vary depending on your OS (e.g. Linux, macOS, CygWin). If facing problems, please consult the appropriate netcat manual.
 
 ## Changelog
+[1.2.5]
+
+- Merged [lelemka0](https://github.com/lelemka0) changes
+- NPM fixes by [vidosits](https://github.com/vidosits)
 
 [1.2.4]
+
 - Updated NPM dependency versions to more current (~2 years old!)
 - Defined fsevents as optional for linux based platforms
 - as of 4/26/2021 "found 0 vulnerabilities"
 - UDP Datagram warning is fixed with later versions
-
 
 [1.2.3]
 
@@ -251,3 +259,5 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE.md](LICENSE.md) 
 - [arthurkrupa](https://https://github.com/arthurkrupa) for the actual service
 - [bkbilly](https://github.com/bkbilly) for service improvements to MQTT
 - [aaronsb](https://github.com/aaronsb) for sweeping the Node floor
+- [vidosits](https://github.com/vidosits) for NPM fixes
+- [lelemka0](https://github.com/lelemka0) for various improvements, namely Home Assistant Discovery

@@ -1,0 +1,1 @@
+docker run --restart=always -e DOMAIN_NAME=au.dis.gree.com -e EXTERNAL_IP=192.168.X.X -p 5000:5000 emtek/greeac-dummyserver:latest

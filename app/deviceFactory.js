@@ -6,40 +6,59 @@ const encryptionService = require('./encryptionService')()
 const cmd = require('./commandEnums')
 
 /**
- * Class representing a single connected device
+ * Class representing a single connected controller
  */
-class Device {
+class Controller {
   /**
-     * Create device model and establish UDP connection with remote host
+     * Create controller model and establish UDP connection with remote host
      * @param {object} [options] Options
      * @param {string} [options.address] HVAC IP address
+     * @param {boolean} [options.autoLights] Automatically turn off lights if Quiet or Sleep mode set.
+     * @param {boolean} [options.autoXFan] Automatically enable X-Fan if cool or dry mode is selected.
+     * @param {string} [options.z2m_sensor_topic] Automatically enable X-Fan if cool or dry mode is selected.
+     * @param {boolean} [options.controllerOnly] Whether to just a controller, does not contain functions (usually VRF)
+     * @param {number} [options.pollingInterval] Interval to poll the device for status (unit: ms)
+     * @param {boolean} [options.debug] Whether to output debug information
      * @callback [options.onStatus] Callback function run on each status update
      * @callback [options.onUpdate] Callback function run after command
+     * @callback [options.onSetup] Callback function run once device is setup
      * @callback [options.onConnected] Callback function run once connection is established
       */
-  constructor (options) {
+  constructor(options) {
     //  Set defaults
     this.options = {
       host: options.host || '192.168.1.255',
-      onStatus: options.onStatus || function () {},
-      onUpdate: options.onUpdate || function () {},
-      onConnected: options.onConnected || function () {}
+      controllerOnly: options.controllerOnly || false,
+      pollingInterval: options.pollingInterval || 3000,
+      autoLights: options.autoLights || true,
+      autoXFan: options.autoXFan || true,
+      z2m_sensor_topic: options.z2m_sensor_topic || '',
+      debug: options.debug || false,
+      onStatus: options.onStatus || function () { },
+      onUpdate: options.onUpdate || function () { },
+      onSetup: options.onSetup || function () { },
+      onConnected: options.onConnected || function () { }
     }
 
+    this.debug = this.options.debug
+
     /**
-         * Device object
-         * @typedef {object} Device
-         * @property {string} id - ID
+         * Controller object
+         * @type {object}
+         * @property {string} cid - cid (Consistent with mac most of the time)
+         * @property {string} uid - uid
+         * @property {string} mac - Mac
          * @property {string} name - Name
          * @property {string} address - IP address
          * @property {number} port - Port number
          * @property {boolean} bound - If is already bound
-         * @property {object} props - Properties
+         * @property {string} key - Encryption key
+         * @property {object} devices - Includes devices
          */
-    this.device = {}
+    this.controller = {}
 
-    // Initialize connection and bind with device
-    this._connectToDevice(this.options.host)
+    // Initialize connection and bind with controller
+    this._connectToController(this.options.host)
 
     // Handle incoming messages
     socket.on('message', (msg, rinfo) => this._handleResponse(msg, rinfo))
@@ -49,7 +68,7 @@ class Device {
      * Initialize connection
      * @param {string} address - IP/host address
      */
-  _connectToDevice (address) {
+  _connectToController(address) {
     try {
       socket.bind(() => {
         const message = Buffer.from(JSON.stringify({ t: 'scan' }))
@@ -57,80 +76,114 @@ class Device {
         socket.setBroadcast(true)
         socket.send(message, 0, message.length, 7000, address)
 
-        console.log('[UDP] Connected to device at %s', address)
+        console.log('[UDP] Connected to controller at %s', address)
       })
     } catch (err) {
       const timeout = 60
 
       console.log('[UDP] Unable to connect (' + err.message + '). Retrying in ' + timeout + 's...')
       setTimeout(() => {
-        this._connectToDevice(address)
+        this._connectToController(address)
       }, timeout * 1000)
     }
   }
 
   /**
-     * Register new device locally
-     * @param {string} id - CID received in handshake message
-     * @param {string} name - Device name received in handshake message
+     * Register new controller locally
+     * @param {object} message - Received handshake message
+     * @param {object} pack - Decrypted pack
      * @param {string} address - IP/host address
      * @param {number} port - Port number
      */
-  _setDevice (id, name, address, port) {
-    this.device.id = id
-    this.device.name = name
-    this.device.address = address
-    this.device.port = port
-    this.device.bound = false
-    this.device.props = {}
+  _setController(message, pack, address, port) {
+    this.controller.cid = message.cid
+    this.controller.uid = message.uid || 0
+    this.controller.mac = pack.mac
+    this.controller.name = pack.name
+    this.controller.subCnt = pack.subCnt || 0
+    this.controller.address = address
+    this.controller.port = port
+    this.controller.bound = false
+    this.controller.devices = {}
 
-    console.log('[UDP] New device registered: %s', this.device.name)
+    console.log('[UDP] New Controller registered: %s', this.controller.name)
   }
 
   /**
-     * Send binding request to device
-     * @param {Device} device Device object
+     * Register new device locally
+     * @param {string} mac - Device mac address
+     * @param {string} name - Device name
+     * @param {boolean} isSubDev - If this device is a sub device
      */
-  _sendBindRequest (device) {
-    const message = {
-      mac: this.device.id,
+  _setDevice(mac, name, isSubDev = false, autoLights = true, autoXFan = true, z2m_sensor_topic = "") {
+    const options = {
+      mac,
+      name,
+      isSubDev,
+      autoLights,
+      autoXFan,
+      z2m_sensor_topic,
+      callbacks: {
+        onStatus: this.options.onStatus,
+        onUpdate: this.options.onUpdate,
+        onSetup: this.options.onSetup
+      }
+    }
+
+    if (Object.keys(this.controller.devices).includes(mac)) {
+      console.log('[UDP] Found a duplicate device: %s %s, skipped.', name, mac)
+      return
+    }
+
+    this.controller.devices[mac] = new Device(this, options)
+    console.log('[UDP] New Device registered: %s', name)
+  }
+
+  /**
+     * Send binding request to controller
+     */
+  _sendBindRequest() {
+    const pack = {
+      mac: this.controller.mac,
       t: 'bind',
       uid: 0
     }
-    const encryptedBoundMessage = encryptionService.encrypt(message)
-    const request = {
-      cid: 'app',
-      i: 1,
-      t: 'pack',
-      uid: 0,
-      pack: encryptedBoundMessage
-    }
-    const toSend = Buffer.from(JSON.stringify(request))
-    socket.send(toSend, 0, toSend.length, device.port, device.address)
+    this._sendRequest(pack, 1)
   }
 
   /**
-     * Confirm device is bound and update device status on list
-     * @param {String} id - Device ID
-     * @param {String} key - Encryption key
+     * Confirm controller is bound and update controller status on list
+     * @param {string} key - Encryption key
      */
-  _confirmBinding (id, key) {
-    this.device.bound = true
-    this.device.key = key
-    console.log('[UDP] Device %s is bound!', this.device.name)
+  _confirmBinding(key) {
+    this.controller.bound = true
+    this.controller.key = key
+    console.log('[UDP] Controller %s is bound!', this.controller.name)
   }
 
   /**
-     * Confirm device is bound and update device status on list
+     * Request sub device list
+     */
+  _requestSubDevices(i = 0) {
+    const pack = {
+      mac: this.controller.mac,
+      i: i,
+      t: 'subDev'
+    }
+    this._sendRequest(pack)
+  }
+
+  /**
+     * Update device status on list
      * @param {Device} device - Device
      */
-  _requestDeviceStatus (device) {
-    const message = {
+  _requestDeviceStatus(device) {
+    const pack = {
       cols: Object.keys(cmd).map(key => cmd[key].code),
-      mac: device.id,
+      mac: device.mac,
       t: 'status'
     }
-    this._sendRequest(message, device.address, device.port)
+    this._sendRequest(pack)
   }
 
   /**
@@ -140,44 +193,59 @@ class Device {
      * @param {string} rinfo.address IP/host address
      * @param {number} rinfo.port Port number
      */
-  _handleResponse (msg, rinfo) {
+  _handleResponse(msg, rinfo) {
     const message = JSON.parse(msg + '')
 
     // Extract encrypted package from message using device key (if available)
-    const pack = encryptionService.decrypt(message, (this.device || {}).key)
-
+    const pack = encryptionService.decrypt(message, (this.controller || {}).key)
+    const type = pack.t || ''
+    this.debug && console.log('[PACK][%s] received from %s:%d', type.toUpperCase(), rinfo.address, rinfo.port)
     // If package type is response to handshake
-    if (pack.t === 'dev') {
-      this._setDevice(message.cid || pack.mac, pack.name || pack.mac.substr(4), rinfo.address, rinfo.port)
+    if (type === 'dev') {
+      this._setController(message, pack, rinfo.address, rinfo.port)
       this._sendBindRequest(this.device)
       return
     }
 
     // If package type is binding confirmation
-    if (pack.t === 'bindok' && this.device.id) {
-      this._confirmBinding(message.cid, pack.key)
+    if (type.toLowerCase() === 'bindok') {
+      this._confirmBinding(pack.key)
+      this.options.onConnected(this.controller)
+      if (!this.options.controllerOnly)
+        this._setDevice(this.controller.mac, this.controller.name, false, this.options.autoLights, this.options.autoXFan, this.options.z2m_sensor_topic)
+      if (this.controller.subCnt >= 1)
+        this._requestSubDevices()
+      return
+    }
 
-      // Start requesting device status on set interval
-      setInterval(this._requestDeviceStatus.bind(this, this.device), 3000)
-      this.options.onConnected(this.device)
+    // If package type is subDev list
+    if (type === 'subList') {
+      for (let device of pack.list)
+        this._setDevice(device.mac, device.name, true)
+      let count = 0
+      for (let device of Object.values(this.controller.devices))
+        if (device.isSubDev)
+          count++
+      if (count < this.controller.subCnt)
+        this._requestSubDevices(pack.i + 1)
       return
     }
 
     // If package type is device status
-    if (pack.t === 'dat' && this.device.bound) {
-      pack.cols.forEach((col, i) => {
-        this.device.props[col] = pack.dat[i]
-      })
-      this.options.onStatus(this.device)
+    if (type === 'dat' && this.controller.bound) {
+      if (Object.keys(this.controller.devices).includes(pack.mac))
+        this.controller.devices[pack.mac]._handleDat(pack)
+      else
+        console.log('[UDP] Received dat message for unknown device %s: %s, %s', pack.mac, message, pack)
       return
     }
 
     // If package type is response, update device properties
-    if (pack.t === 'res' && this.device.bound) {
-      pack.opt.forEach((opt, i) => {
-        this.device.props[opt] = pack.val[i]
-      })
-      this.options.onUpdate(this.device)
+    if (type === 'res' && this.controller.bound) {
+      if (Object.keys(this.controller.devices).includes(pack.mac))
+        this.controller.devices[pack.mac]._handleRes(pack)
+      else
+        console.log('[UDP] Received res message for unknown device %s: %s, %s', pack.mac, message, pack)
       return
     }
 
@@ -185,46 +253,175 @@ class Device {
   }
 
   /**
+     * Send request to a bound device
+     * @param {object} pack
+     * @param {number} i
+     */
+  _sendRequest(pack, i = 0) {
+    const encryptedPack = encryptionService.encrypt(pack, this.controller.key)
+    const request = {
+      cid: 'app',
+      i: i,
+      t: 'pack',
+      uid: this.controller.uid,
+      pack: encryptedPack,
+      tcid: this.controller.cid
+    }
+    const serializedRequest = Buffer.from(JSON.stringify(request))
+    socket.send(serializedRequest, 0, serializedRequest.length, this.controller.port, this.controller.address)
+  };
+
+};
+
+
+/**
+ * Class representing a single connected device
+ */
+class Device {
+  /**
+     * Create device model
+     * @param {Controller} [parent] the controller object of this device
+     * @param {object} [options] Options
+     * @param {string} [options.mac] device mac address
+     * @param {string} [options.name] device name
+     * @param {boolean} [options.autoLights] Automatically turn off lights if Quiet or Sleep mode set.
+     * @param {boolean} [options.autoXFan] Automatically enable X-Fan if cool or dry mode is selected.
+     * @param {string} [options.z2m_sensor_topic] MQTT Topic for retrieving current humidity.
+     * @param {boolean} [options.isSubDev] if this device is a sub device
+     * @param {object} [options.callbacks] Callback functions
+     * @param {function} [options.callbacks.onStatus] Callback function run on each status update
+     * @param {function} [options.callbacks.onUpdate] Callback function run after command
+     * @param {function} [options.callbacks.onSetup] Callback function run once device is setup
+      */
+  constructor(parent, options) {
+
+    this.controller = parent
+    this.isSubDev = options.isSubDev
+    this.pollingInterval = this.controller.options.pollingInterval
+    this.autoLights = options.autoLights
+    this.autoXFan = options.autoXFan
+    this.z2m_sensor_topic = options.z2m_sensor_topic
+    this.mac = options.mac
+    this.name = options.name
+    this.callbacks = options.callbacks
+
+    this.debug = this.controller.debug
+
+    this.props = {}
+
+    // Start requesting device status on set interval
+    setInterval(this.controller._requestDeviceStatus.bind(this.controller, this), this.pollingInterval)
+
+    // Wait props update, then call onSetup
+    let waiting;
+    (waiting = () => {
+      if (Object.keys(this.props).length > 0) {
+        this.callbacks.onSetup(this)
+        return
+      }
+      setTimeout(waiting.bind(this), 1000)
+    })()
+
+  }
+
+  _prepareCallback(changedProps) {
+    const res = {}
+    for (let key in changedProps) {
+      let name = Object.keys(cmd).find(k => cmd[k].code === key)
+      let state
+      if (!name) {
+        this.debug && console.log("[UDP][Debug][prepareCallback] Unknown Prop Name %s: %s", key, changedProps)
+        continue
+      }
+      if (cmd[name].value)
+        state = Object.keys(cmd[name].value).find(k => cmd[name].value[k] === changedProps[key])
+      else
+        state = changedProps[key]
+      res[name] = { value: changedProps[key], state }
+      if (name != 'time')
+        this.debug && console.log("[UDP][Debug][Status Prepare] %s %s: %s -> %s %s", this.name, this.mac, name, state, changedProps[key])
+    }
+    return res
+  }
+
+  /**
+     * Handle dat message
+     * @param {object} pack
+     * @param {string[]} [pack.cols]
+     * @param {number[]} [pack.dat]
+     */
+  _handleDat(pack) {
+    const changed = {}
+    // this.debug && console.log("[UDP][Debug][Dat] %s",pack.cols)
+    pack.cols.forEach((col, i) => {
+      if (this.props[col] !== pack.dat[i]) {
+        changed[col] = pack.dat[i]
+        col !== 'time' && this.debug && console.log("[DAT][CH] %s: %s -> %s", col, this.props[col], col, pack.dat[i])
+      }
+      this.props[col] = pack.dat[i]
+    })
+    if (Object.keys(changed).length > 0)
+      this.callbacks.onStatus(this, this._prepareCallback(changed))
+    return
+  }
+
+  /**
+     * Handle res message
+     * @param {object} pack
+     * @param {string[]} [pack.opt]
+     * @param {number[]} [pack.val]
+     */
+  _handleRes(pack) {
+    const changed = {}
+    pack.opt.forEach((opt, i) => {
+      changed[opt] = pack.val[i]
+      this.debug && console.log("[RES][CH] %s: %s -> %s", opt, this.props[opt], pack.val[i])
+      this.props[opt] = pack.val[i]
+    })
+    this.callbacks.onUpdate(this, this._prepareCallback(changed))
+    return
+  }
+
+  /**
      * Send commands to a bound device
      * @param {string[]} commands List of commands
      * @param {number[]} values List of values
      */
-  _sendCommand (commands = [], values = []) {
-    const message = {
+  _sendCommand(commands = [], values = []) {
+    const pack = {
       opt: commands,
       p: values,
       t: 'cmd'
     }
-    this._sendRequest(message)
+    if (this.isSubDev)
+      pack.sub = this.mac
+    this.controller._sendRequest(pack)
   };
-
   /**
-     * Send request to a bound device
-     * @param {object} message
-     * @param {string[]} message.opt
-     * @param {number[]} message.p
-     * @param {string} message.t
-     * @param {string} [address] IP/host address
-     * @param {number} [port] Port number
-     */
-  _sendRequest (message, address = this.device.address, port = this.device.port) {
-    const encryptedMessage = encryptionService.encrypt(message, this.device.key)
-    const request = {
-      cid: 'app',
-      i: 0,
-      t: 'pack',
-      uid: 0,
-      pack: encryptedMessage
-    }
-    const serializedRequest = Buffer.from(JSON.stringify(request))
-    socket.send(serializedRequest, 0, serializedRequest.length, port, address)
+   * Set Time
+   * @param {string} value Time
+   */
+  setTime(value) {
+    this._sendCommand(
+      [cmd.time.code],
+      [value]
+    )
   };
-
+  /**
+     * Set HeatCoolType. Not sure what this does yet.
+     * @param {boolean} value State
+     */
+  setHeatCool(value) {
+    this._sendCommand(
+      [cmd.heatcooltype.code],
+      [value]
+    )
+  };
   /**
      * Turn on/off
      * @param {boolean} value State
      */
-  setPower (value) {
+  setPower(value) {
     this._sendCommand(
       [cmd.power.code],
       [value ? 1 : 0]
@@ -236,10 +433,18 @@ class Device {
      * @param {number} value Temperature
      * @param {number} [unit=0] Units (defaults to Celsius)
      */
-  setTemp (value, unit = cmd.temperatureUnit.value.celsius) {
+  setTemp(value, unit = cmd.temperatureUnit.value.celsius) {
     this._sendCommand(
-      [cmd.temperatureUnit.code, cmd.temperature.code],
-      [unit, value]
+      /**
+       * On my device, the return value is fine but the actual temperature does not change.
+       * Works normally after swapping unit and value.
+       * GOD Knows WHY !!!
+       * 
+       * [cmd.temperatureUnit.code, cmd.temperature.code],
+       * [unit, value]
+       */
+      [cmd.temperature.code, cmd.temperatureUnit.code],
+      [value, unit]
     )
   };
 
@@ -247,7 +452,7 @@ class Device {
      * Set mode
      * @param {number} value Mode value (0-4)
      */
-  setMode (value) {
+  setMode(value) {
     this._sendCommand(
       [cmd.mode.code],
       [value]
@@ -258,7 +463,7 @@ class Device {
      * Set fan speed
      * @param {number} value Fan speed value (0-5)
      */
-  setFanSpeed (value) {
+  setFanSpeed(value) {
     this._sendCommand(
       [cmd.fanSpeed.code],
       [value]
@@ -269,7 +474,7 @@ class Device {
      * Set horizontal swing
      * @param {number} value Horizontal swing value (0-7)
      */
-  setSwingHor (value) {
+  setSwingHor(value) {
     this._sendCommand(
       [cmd.swingHor.code],
       [value]
@@ -280,7 +485,7 @@ class Device {
      * Set vertical swing
      * @param {number} value Vertical swing value (0-11)
      */
-  setSwingVert (value) {
+  setSwingVert(value) {
     this._sendCommand(
       [cmd.swingVert.code],
       [value]
@@ -291,7 +496,7 @@ class Device {
      * Set power save mode
      * @param {boolean} value on/off
      */
-  setPowerSave (value) {
+  setPowerSave(value) {
     this._sendCommand(
       [cmd.powerSave.code],
       [value ? 1 : 0]
@@ -302,7 +507,7 @@ class Device {
      * Set lights on/off
      * @param {boolean} value on/off
      */
-  setLights (value) {
+  setLights(value) {
     this._sendCommand(
       [cmd.lights.code],
       [value ? 1 : 0]
@@ -313,7 +518,7 @@ class Device {
      * Set health mode
      * @param {boolean} value on/off
      */
-  setHealthMode (value) {
+  setHealthMode(value) {
     this._sendCommand(
       [cmd.health.code],
       [value ? 1 : 0]
@@ -324,7 +529,7 @@ class Device {
      * Set quiet mode
      * @param {boolean} value on/off
      */
-  setQuietMode (value) {
+  setQuietMode(value) {
     this._sendCommand(
       [cmd.quiet.code],
       [value]
@@ -335,7 +540,7 @@ class Device {
      * Set blow mode
      * @param {boolean} value on/off
      */
-  setBlow (value) {
+  setBlow(value) {
     this._sendCommand(
       [cmd.blow.code],
       [value ? 1 : 0]
@@ -346,7 +551,7 @@ class Device {
      * Set air valve mode
      * @param {boolean} value on/off
      */
-  setAir (value) {
+  setAir(value) {
     this._sendCommand(
       [cmd.air.code],
       [value]
@@ -357,10 +562,10 @@ class Device {
      * Set sleep mode
      * @param {boolean} value on/off
      */
-  setSleepMode (value) {
+  setSleepMode(value) {
     this._sendCommand(
       [cmd.sleep.code],
-      [value ? 1 : 0]
+      [value === 1 ? 1 : 0]
     )
   };
 
@@ -368,7 +573,7 @@ class Device {
      * Set turbo mode
      * @param {boolean} value on/off
      */
-  setTurbo (value) {
+  setTurbo(value) {
     this._sendCommand(
       [cmd.turbo.code],
       [value ? 1 : 0]
@@ -377,5 +582,5 @@ class Device {
 };
 
 module.exports.connect = function (options) {
-  return new Device(options)
+  return new Controller(options)
 }
