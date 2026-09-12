@@ -3,7 +3,6 @@ version: 2.0.0
 slug: gree_hvac_mqtt_bridge
 description: Control Gree air conditioners through MQTT with Home Assistant MQTT Discovery.
 url: https://github.com/aretokas/gree-hvac-mqtt-bridge
-image: ghcr.io/aretokas/{arch}-gree-hvac-mqtt-bridge
 arch:
   - aarch64
   - amd64
