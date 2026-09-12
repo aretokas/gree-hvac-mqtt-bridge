@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 'use strict'
 
+const { format } = require('node:util')
+
 // Prefix every application log entry with an unambiguous UTC timestamp.
 for (const level of ['log', 'info', 'warn', 'error']) {
   const write = console[level].bind(console)
-  console[level] = (...args) => write(new Date().toISOString(), ...args)
+  console[level] = (...args) => write(`${new Date().toISOString()} ${format(...args)}`)
 }
 
 const mqtt = require('mqtt')
