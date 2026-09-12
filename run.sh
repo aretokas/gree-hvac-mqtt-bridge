@@ -26,6 +26,13 @@ for i in $(seq 0 "$((INSTANCE_COUNT - 1))"); do
   RECOVERY_INTERVAL=$(bashio::config "devices[$i].recovery_interval")
   [[ "$ZIGBEE2MQTT_SENSOR_TOPIC" == "null" ]] && ZIGBEE2MQTT_SENSOR_TOPIC=''
 
+  # Ignore null list slots returned by the App configuration interface. A
+  # missing host would otherwise make the bridge fall back to broadcast.
+  if [[ "$HVAC_HOST" == "null" || -z "${HVAC_HOST//[[:space:]]/}" ]]; then
+    bashio::log.warning "Skipping device entry $i because hvac_host is not configured"
+    continue
+  fi
+
   bashio::log.info "Starting bridge instance $i for $HVAC_HOST"
   node index.js \
     --hvac-host="$HVAC_HOST" \
@@ -44,5 +51,10 @@ for i in $(seq 0 "$((INSTANCE_COUNT - 1))"); do
     --zigbee2mqtt-sensor-topic="$ZIGBEE2MQTT_SENSOR_TOPIC" &
   PIDS+=("$!")
 done
+
+if (( ${#PIDS[@]} == 0 )); then
+  bashio::log.error 'No devices with an hvac_host are configured'
+  exit 1
+fi
 
 wait -n "${PIDS[@]}"
