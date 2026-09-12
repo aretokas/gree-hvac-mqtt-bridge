@@ -2,19 +2,21 @@
 'use strict'
 
 const { format } = require('node:util')
-
-// Prefix every application log entry with an unambiguous UTC timestamp.
-for (const level of ['log', 'info', 'warn', 'error']) {
-  const write = console[level].bind(console)
-  console[level] = (...args) => write(`${new Date().toISOString()} ${format(...args)}`)
-}
-
-const mqtt = require('mqtt')
-const commands = require('./app/commandEnums')
 const argv = require('minimist')(process.argv.slice(2), {
   string: ['hvac-host', 'mqtt-broker-url', 'mqtt-topic-prefix', 'mqtt-username', 'mqtt-password'],
   '--': true
 })
+
+// Prefix every application log entry with a UTC timestamp and the bridge's
+// configured controller address. Multiple bridge processes share one log.
+const bridgeLabel = argv['hvac-host'] || 'unknown-host'
+for (const level of ['log', 'info', 'warn', 'error']) {
+  const write = console[level].bind(console)
+  console[level] = (...args) => write(`${new Date().toISOString()} [bridge ${bridgeLabel}] ${format(...args)}`)
+}
+
+const mqtt = require('mqtt')
+const commands = require('./app/commandEnums')
 
 /**
  * Debug Flag
