@@ -62,6 +62,7 @@ class Controller {
     this.registrationStartedAt = 0
     this.registrationComplete = false
     this.lastStatusAt = 0
+    this.lastStatusPacketLogAt = 0
 
     // Handle incoming messages
     socket.on('message', (msg, rinfo) => this._handleResponse(msg, rinfo))
@@ -262,7 +263,14 @@ class Controller {
     // Extract encrypted package from message using device key (if available)
     const pack = encryptionService.decrypt(message, (this.controller || {}).key)
     const type = pack.t || ''
-    this.debug && console.log('[PACK][%s] received from %s:%d', type.toUpperCase(), rinfo.address, rinfo.port)
+    const isStatusPacket = type.toLowerCase() === 'dat'
+    const packetLogInterval = Math.max(1000, Math.floor(this.options.recoveryInterval / 2))
+    const now = Date.now()
+    if (this.debug && (!isStatusPacket || now - this.lastStatusPacketLogAt >= packetLogInterval)) {
+      console.log('[PACK][%s] received from %s:%d', type.toUpperCase(), rinfo.address, rinfo.port)
+      if (isStatusPacket)
+        this.lastStatusPacketLogAt = now
+    }
     // If package type is response to handshake
     if (type === 'dev') {
       this._setController(message, pack, rinfo.address, rinfo.port)
