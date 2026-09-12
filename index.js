@@ -58,7 +58,7 @@ const onSetup = function (deviceModel) {
   /**
    * Publish all status every 10 mins.
    */
-  setTimeout(() => {
+  setInterval(() => {
     onStatus(deviceModel, deviceModel._prepareCallback(deviceModel.props))
   }, 600 * 1000)
   /**
@@ -77,7 +77,9 @@ const onSetup = function (deviceModel) {
       z2m_sensor_topic: deviceModel.z2m_sensor_topic,
       mqttClient: client,
       mqttDeviceTopic: mqttTopicPrefix + deviceModel.mac,
-      mqttPubOptions: pubmqttOptions
+      availabilityTopic: mqttTopicPrefix + 'availability',
+      mqttPubOptions: pubmqttOptions,
+      discoveryPrefix: argv['homeassistant-discovery-prefix']
     })
     let enabled_commands
     if (argv['homeassistant-mqtt-discovery-enable'])
@@ -122,15 +124,21 @@ const mqttTopicPrefix = __mqttTopicPrefix
 const pubmqttOptions = {
   retain: false
 }
-if (argv['mqtt-retain']) {
-  pubmqttOptions.retain = (argv['mqtt-retain'] == "true")
-}
+if (argv['mqtt-retain'])
+  pubmqttOptions.retain = argv['mqtt-retain'] === 'true'
 
 const publish2mqtt = function (newValue, mqttTopic) {
   client.publish(mqttTopicPrefix + mqttTopic + '/get', newValue.toString(), pubmqttOptions)
 }
 
-const mqttOptions = {}
+const mqttOptions = {
+  will: {
+    topic: mqttTopicPrefix + 'availability',
+    payload: 'offline',
+    qos: 1,
+    retain: true
+  }
+}
 let authLog = ''
 if (argv['mqtt-username'] && argv['mqtt-password']) {
   mqttOptions.username = argv['mqtt-username']
@@ -144,7 +152,7 @@ client.on('reconnect', () => {
   console.log('[MQTT] Reconnecting to ' + argv['mqtt-broker-url'] + authLog + '...')
 })
 
-client.stream.on('error', e => {
+client.on('error', e => {
   console.error('[MQTT] Error:', e)
 })
 
@@ -154,7 +162,9 @@ client.on('close', () => {
 
 client.on('connect', () => {
   console.log('[MQTT] Connected to broker')
-  hvac = require('./app/deviceFactory').connect(deviceOptions)
+  client.publish(mqttTopicPrefix + 'availability', 'online', { qos: 1, retain: true })
+  if (!hvac)
+    hvac = require('./app/deviceFactory').connect(deviceOptions)
 })
 
 client.on('message', (topic, message) => {
@@ -164,8 +174,15 @@ client.on('message', (topic, message) => {
   if (topic.startsWith(mqttTopicPrefix)) {
     let t = topic.substring(mqttTopicPrefix.length).split('/')
     if (t.length === 2)
+      if (!hvac || !hvac.controller.mac)
+        return console.log('[MQTT] Controller is not ready; command ignored')
+    if (t.length === 2)
       t.unshift(hvac.controller.mac)
+    if (t.length !== 3 || t[2] !== 'set')
+      return console.log('[MQTT] No handler for topic %s', topic)
     let device = hvac.controller.devices[t[0]]
+    if (!device)
+      return console.log('[MQTT] Unknown device for topic %s', topic)
     switch (t[1]) {
       // No longer need to support setting time as it's dealt with in the power section.
       //case 'time':
@@ -199,10 +216,10 @@ client.on('message', (topic, message) => {
         return
       case 'power':
         device.setPower(parseInt(message))
-        var date = new Date();
-        var timeDifference = (Math.abs(date - new Date(device.props.time))) / 1000;  // difference in Seconds
-        var splitDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split("T");
-        var dateString = splitDate[0] + ' ' + splitDate[1].split(".")[0];
+        const date = new Date()
+        const timeDifference = Math.abs(date - new Date(device.props.time)) / 1000
+        const splitDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')
+        const dateString = splitDate[0] + ' ' + splitDate[1].split('.')[0]
         if (timeDifference > 600) { //set time if greater than 10 minute difference.
           device.debug && console.log('[DEBUG] Time Check: %s -> %s -> %s', device.props.time, timeDifference, dateString)
           device.setTime(dateString)
@@ -219,12 +236,12 @@ client.on('message', (topic, message) => {
         return
       case 'quiet':
         device.setQuietMode(parseInt(message))
-        if (message === commands.quiet.value.off)
+        if (message === String(commands.quiet.value.off))
           device.setFanSpeed(commands.fanSpeed.value.auto)
 
         if (device.autoLights) {
           device.debug && console.log('[DEBUG] Auto Lights Set on Quiet -> ' + message)
-          if (message == commands.quiet.value.off) {
+          if (message === String(commands.quiet.value.off)) {
             device.debug && console.log('[DEBUG] Auto Lights ON')
             device.setLights(commands.lights.value.on)
           } else {
@@ -241,14 +258,14 @@ client.on('message', (topic, message) => {
         return
       case 'sleep': // TODO: Work out why the device continuously returns "Sleep: 1" no matter what we send for SwhSlp
         device.setSleepMode(parseInt(message))
-        if (message == commands.sleep.value.on)
+        if (message === String(commands.sleep.value.on))
           device.setQuietMode(commands.quiet.value.mode1)
         else
           device.setQuietMode(commands.quiet.value.off)
 
         if (device.autoLights) {
           device.debug && console.log('[DEBUG] Auto Lights Set on Sleep -> ' + message)
-          if (message == commands.sleep.value.on) {
+          if (message === String(commands.sleep.value.on)) {
             device.debug && console.log('[DEBUG] Auto Lights OFF')
             device.setLights(commands.lights.value.off)
           } else {

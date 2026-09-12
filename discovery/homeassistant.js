@@ -9,36 +9,40 @@ const commands = require('../app/commandEnums')
  * @param {string} [options.device_temperatureUnit] C/F
  * @param {MqttClient} [options.mqttClient]
  * @param {string} [options.mqttDeviceTopic]
+ * @param {string} [options.availabilityTopic]
  * @param {object} [options.mqttPubOptions]
- * @param {number} [options.mqttPubInterval]
+ * @param {string} [options.discoveryPrefix]
  */
 class HOMEASSISTANT_DISCOVERY {
     constructor(options) {
         this.debug = options.debug || false
 
         if (!options.device_mac || !options.device_name || !options.mqttClient || !options.mqttDeviceTopic)
-            throw '[HOMEASSISTANT_DISCOVERY][Fatal] Missing required parameter.'
+            throw new Error('[HOMEASSISTANT_DISCOVERY][Fatal] Missing required parameter.')
         this.device_mac = options.device_mac
         this.device_name = options.device_name
         this.device_temperatureUnit = options.device_temperatureUnit || undefined
         this.z2m_sensor_topic = options.z2m_sensor_topic || ''
         this.mqttClient = options.mqttClient
         this.mqttDeviceTopic = options.mqttDeviceTopic
+        this.availabilityTopic = options.availabilityTopic || this.mqttDeviceTopic + '/availability'
         this.mqttPubOptions = options.mqttPubOptions || {}
-        this.mqttPubInterval = options.mqttPubInterval * 1000 || 600 * 1000
+        this.discoveryPrefix = options.discoveryPrefix || 'homeassistant'
 
         this.unique_id = 'gree_' + this.device_mac
 
         this.DEVMSG = {
             device: {
-                identifiers: [this.device_mac.replace(/..\B/g, '$&:'), this.unique_id],
+                identifiers: [this.unique_id],
                 manufacturer: 'Gree',
                 name: this.device_name,
                 connections: [['mac', this.device_mac.replace(/..\B/g, '$&:')]]
-            }
+            },
+            availability_topic: this.availabilityTopic,
+            payload_available: 'online',
+            payload_not_available: 'offline'
         }
 
-        this.registered = []
         this.allowCommands = ['climate', 'power', 'sleep', 'turbo', 'powersave', 'health', 'lights', 'blow', 'quiet', 'quiet_as_switch', 'swinghor', 'air']
         this.enabledCommands = []
     }
@@ -58,7 +62,8 @@ class HOMEASSISTANT_DISCOVERY {
                     console.log("[HOMEASSISTANT_DISCOVERY][Warning] %s is a disallowed command, skipped.")
                     continue
                 }
-                eval('this._register_' + cmd + '()')
+                const register = this['_register_' + cmd]
+                register.call(this)
                 this.enabledCommands.push(cmd)
             }
 
@@ -69,24 +74,16 @@ class HOMEASSISTANT_DISCOVERY {
         this.REGISTER(this.allowCommands)
     }
 
-    _interval_register(fn) {
-        this.registered.push(setInterval(fn.bind(this), this.mqttPubInterval))
-    }
-
     _publish(msg, component, entity) {
         const entityName = entity ? '_' + entity : ''
-
-        let fn; (fn = () => {
-            this.mqttClient.publish(
-                'homeassistant/' + component + '/' + this.unique_id + entityName + '/config',
-                JSON.stringify(Object.assign({
-                    'unique_id': this.unique_id + entityName,
-                    'object_id': this.unique_id + entityName
-                }, this.DEVMSG, msg)),
-                Object.assign({}, this.mqttPubOptions, { retain: true })
-            )
-        })()
-        this._interval_register(fn)
+        this.mqttClient.publish(
+            this.discoveryPrefix + '/' + component + '/' + this.unique_id + entityName + '/config',
+            JSON.stringify(Object.assign({
+                unique_id: this.unique_id + entityName,
+                object_id: this.unique_id + entityName
+            }, this.DEVMSG, msg)),
+            Object.assign({}, this.mqttPubOptions, { retain: true })
+        )
         this.debug && console.log("[HOMEASSISTANT_DISCOVERY][Debug] %s %s: %s %s registered.", this.device_name, this.device_mac, component, entity)
     }
 
@@ -103,14 +100,17 @@ class HOMEASSISTANT_DISCOVERY {
             'fan_mode_command_topic': this.mqttDeviceTopic + "/fanspeed/set",
             'swing_mode_state_topic': this.mqttDeviceTopic + "/swingvert/get",
             'swing_mode_command_topic': this.mqttDeviceTopic + "/swingvert/set",
-            'current_temperature_topic': this.z2m_sensor_topic,
-            'current_temperature_template': "{{ value_json.temperature }}",
-            'current_humidity_topic': this.z2m_sensor_topic,
-            'current_humidity_template': "{{ value_json.humidity }}",
-
             'modes': ['off', ...Object.keys(commands.mode.value)],
             'fan_modes': Object.keys(commands.fanSpeed.value),
             'swing_modes': Object.keys(commands.swingVert.value),
+        }
+        if (this.z2m_sensor_topic) {
+            DISCOVERY_MSG.current_temperature_topic = this.z2m_sensor_topic
+            DISCOVERY_MSG.current_temperature_template = '{{ value_json.temperature }}'
+            DISCOVERY_MSG.current_humidity_topic = this.z2m_sensor_topic
+            DISCOVERY_MSG.current_humidity_template = '{{ value_json.humidity }}'
+        } else {
+            DISCOVERY_MSG.current_temperature_topic = this.mqttDeviceTopic + '/currenttemp/get'
         }
         const DISCOVERY_Optional = {}
 

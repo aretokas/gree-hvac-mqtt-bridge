@@ -1,16 +1,16 @@
 # Gree HVAC MQTT bridge
 
-Bridge service for communicating with Gree air conditioners using MQTT broadcasts. It can also be used as a [Hass.io](https://home-assistant.io/) addon.
+Bridge service for communicating with Gree air conditioners using MQTT broadcasts. It is a [Home Assistant App](https://developers.home-assistant.io/docs/add-ons/) and uses MQTT Discovery by default, so no manual `climate.mqtt` YAML is needed.
 
 ## Requirements
 
-- NodeJS (>=11.0.0) with NPM
+- Node.js 22 or later with npm
 - An MQTT broker and Gree smart HVAC device on the same network
-- Docker (for building Hass.io addon)
+- Docker (for building the Home Assistant App)
 
 ## Running locally
 
-Make sure you have NodeJS (>=8.11.0) installed and run the following (adjust the arguments to match your setup):
+Make sure you have Node.js 22 or later installed and run the following (adjust the arguments to match your setup):
 
 ```shell
 npm install
@@ -52,69 +52,15 @@ Note: _boolean_ values are set using 0 or 1
 | **sleep** | _0_, _1_ | Sleep mode |
 | **turbo** | _0_, _1_ | Turbo mode |
 
-## Hass.io addon
+## Home Assistant App
 
-The service can be used as a 3rd party addon for the Hass.io [MQTT climate platform](https://home-assistant.io/components/climate.mqtt/), although not all commands are supported.
+1. Add this repository in **Settings → Apps → App Store → ⋮ → Repositories**.
+2. Install **Gree HVAC MQTT Bridge**, configure the MQTT broker and device list, then start it.
+3. Ensure the MQTT integration is configured. The climate entity and selected controls are created automatically through MQTT Discovery.
 
-1. [Install](https://home-assistant.io/hassio/installing_third_party_addons/) the addon
-2. Customize addon options (HVAC host, MQTT broker URL, MQTT topic prefix)
-3. Add the following to your `configuration.yaml`
+The bridge publishes retained discovery configuration and retained `online`/`offline` availability. A device is therefore restored automatically after a Home Assistant or broker restart. No `configuration.yaml` edits are required.
 
-```yaml
-climate:
-  - platform: mqtt
-
-    # Change to whatever you want
-    name: Gree HVAC
-
-    # Change MQTT_TOPIC_PREFIX to what you've set in addon options
-    current_temperature_topic: "MQTT_TOPIC_PREFIX/temperature/get"
-    temperature_command_topic: "MQTT_TOPIC_PREFIX/temperature/set"
-    temperature_state_topic: "MQTT_TOPIC_PREFIX/temperature/get"
-    mode_state_topic: "MQTT_TOPIC_PREFIX/mode/get"
-    mode_command_topic: "MQTT_TOPIC_PREFIX/mode/set"
-    fan_mode_state_topic: "MQTT_TOPIC_PREFIX/fanspeed/get"
-    fan_mode_command_topic: "MQTT_TOPIC_PREFIX/fanspeed/set"
-    swing_mode_state_topic: "MQTT_TOPIC_PREFIX/swingvert/get"
-    swing_mode_command_topic: "MQTT_TOPIC_PREFIX/swingvert/set"
-    power_state_topic: "MQTT_TOPIC_PREFIX/power/get"
-    power_command_topic: "MQTT_TOPIC_PREFIX/power/set"
-
-    # Keep the following as is
-    payload_off: 0
-    payload_on: 1
-    modes:
-      - "off"
-      - "auto"
-      - "cool"
-      - "heat"
-      - "dry"
-      - "fan_only"
-    swing_modes:
-      - "default"
-      - "full"
-      - "fixedTop"
-      - "fixedMidTop"
-      - "fixedMid"
-      - "fixedMidBottom"
-      - "fixedBottom"
-      - "swingBottom"
-      - "swingMidBottom"
-      - "swingMid"
-      - "swingMidTop"
-      - "swingTop"
-    fan_modes:
-      - "auto"
-      - "low"
-      - "mediumLow"
-      - "medium"
-      - "mediumHigh"
-      - "high"
-```
-
-### How to power on/off
-
-Hass.io doesn't supply separate on/off switch. Use the dedicated mode for that.
+`mqtt.discovery_prefix` defaults to `homeassistant`; change it only when Home Assistant's MQTT discovery prefix has been changed. `zigbee2mqtt_sensor_topic` is optional. When omitted, the climate entity uses the Gree unit's own reported current temperature.
 
 ### Running addon locally
 
@@ -122,7 +68,7 @@ Create an `./data/options.json` file inside the repo with persistent addon confi
 
 ```shell
 docker build \
-    --build-arg BUILD_FROM="homeassistant/amd64-base:latest" \
+    --build-arg BUILD_FROM="ghcr.io/home-assistant/amd64-base:latest" \
     -t gree-hvac-mqtt-bridge .
 
 docker run --rm -v "$PWD/data":/data gree-hvac-mqtt-bridge
@@ -141,7 +87,7 @@ sudo systemctl start gree-bridge
 
 ### Multiple devices
 
-As of 1.2.0 the Hassio addon supports multiple devices by running paralell NodeJS processes in PM2. Old configurations will work, but will run without PM2.
+The App supports multiple devices by supervising one bridge process per configured device. Each device must use a distinct MQTT topic prefix.
 
 config example:
 
@@ -179,6 +125,13 @@ echo -n "{\"psw\": \"YOUR_WIFI_PASSWORD\",\"ssid\": \"YOUR_WIFI_SSID\",\"t\": \"
 Note: This command may vary depending on your OS (e.g. Linux, macOS, CygWin). If facing problems, please consult the appropriate netcat manual.
 
 ## Changelog
+[2.0.0]
+
+- Migrated the add-on manifest to the current Home Assistant App format.
+- Added multi-architecture build metadata and install dependencies at image build time.
+- Replaced PM2 with App-supervised bridge processes.
+- Added retained MQTT Discovery configuration and availability reporting.
+
 [1.2.5]
 
 - Merged [lelemka0](https://github.com/lelemka0) changes

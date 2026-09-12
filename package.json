@@ -1,6 +1,6 @@
 {
   "name": "gree-hvac-mqtt-bridge",
-  "version": "1.2.5",
+  "version": "2.0.0",
   "description": "MQTT Bridge for controlling Gree smart air conditioners",
   "main": "index.js",
   "scripts": {
@@ -19,14 +19,10 @@
   "license": "MIT",
   "dependencies": {
     "minimist": "^1.2.5",
-    "mqtt": "^4.2.6",
-    "pm2": "^5.3.1"
-  },
-  "optionalDependencies": {
-    "fsevents": ">=2.3.1"
+    "mqtt": "^4.2.6"
   },
   "engines": {
-    "node": ">=11.0.0"
+    "node": ">=22.0.0"
   },
   "os": [
     "darwin",
