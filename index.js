@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 'use strict'
 
+// Prefix every application log entry with an unambiguous UTC timestamp.
+for (const level of ['log', 'info', 'warn', 'error']) {
+  const write = console[level].bind(console)
+  console[level] = (...args) => write(new Date().toISOString(), ...args)
+}
+
 const mqtt = require('mqtt')
 const commands = require('./app/commandEnums')
 const argv = require('minimist')(process.argv.slice(2), {
