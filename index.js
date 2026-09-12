@@ -92,6 +92,7 @@ const deviceOptions = {
   host: argv['hvac-host'],
   controllerOnly: argv['controllerOnly'] ? true : false,
   pollingInterval: parseInt(argv['polling-interval']) * 1000 || 3000,
+  recoveryInterval: parseInt(argv['recovery-interval']) * 1000 || 30000,
   autoLights: (argv['auto-lights'] === 'false') ? false : true,
   autoXFan: (argv['auto-xfan'] === 'false') ? false : true,
   z2m_sensor_topic: argv['zigbee2mqtt-sensor-topic'] || '',

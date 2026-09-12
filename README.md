@@ -24,6 +24,13 @@ node index.js \
 ```
 When the host is only a controller and not an air conditioner, add `controllerOnly` option. VRF is usually the case.
 
+### Recovery
+
+The bridge automatically restarts device discovery and registration if it does
+not finish registration, or if a registered unit stops answering status polls,
+for 30 seconds. Set `--recovery-interval=SECONDS` to change that timeout.
+For the Home Assistant App, set `recovery_interval` (seconds) on the device.
+
 ## Supported commands
 
 MQTT topic scheme:

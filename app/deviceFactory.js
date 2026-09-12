@@ -18,6 +18,7 @@ class Controller {
      * @param {string} [options.z2m_sensor_topic] Automatically enable X-Fan if cool or dry mode is selected.
      * @param {boolean} [options.controllerOnly] Whether to just a controller, does not contain functions (usually VRF)
      * @param {number} [options.pollingInterval] Interval to poll the device for status (unit: ms)
+     * @param {number} [options.recoveryInterval] Time without completing registration or receiving status before reconnecting (unit: ms)
      * @param {boolean} [options.debug] Whether to output debug information
      * @callback [options.onStatus] Callback function run on each status update
      * @callback [options.onUpdate] Callback function run after command
@@ -30,6 +31,7 @@ class Controller {
       host: options.host || '192.168.1.255',
       controllerOnly: options.controllerOnly || false,
       pollingInterval: options.pollingInterval || 3000,
+      recoveryInterval: options.recoveryInterval || 30000,
       autoLights: options.autoLights !== false,
       autoXFan: options.autoXFan !== false,
       z2m_sensor_topic: options.z2m_sensor_topic || '',
@@ -56,12 +58,18 @@ class Controller {
          * @property {object} devices - Includes devices
          */
     this.controller = {}
-
-    // Initialize connection and bind with controller
-    this._connectToController(this.options.host)
+    this.socketReady = false
+    this.registrationStartedAt = 0
+    this.registrationComplete = false
+    this.lastStatusAt = 0
 
     // Handle incoming messages
     socket.on('message', (msg, rinfo) => this._handleResponse(msg, rinfo))
+    socket.on('error', err => console.error('[UDP] Socket error:', err.message))
+
+    // Initialize connection and bind with controller
+    this._connectToController(this.options.host)
+    this._startRecoveryWatchdog()
   }
 
   /**
@@ -70,13 +78,13 @@ class Controller {
      */
   _connectToController(address) {
     try {
+      if (this.socketReady) {
+        this._scanForController(address)
+        return
+      }
       socket.bind(() => {
-        const message = Buffer.from(JSON.stringify({ t: 'scan' }))
-
-        socket.setBroadcast(true)
-        socket.send(message, 0, message.length, 7000, address)
-
-        console.log('[UDP] Connected to controller at %s', address)
+        this.socketReady = true
+        this._scanForController(address)
       })
     } catch (err) {
       const timeout = 60
@@ -86,6 +94,54 @@ class Controller {
         this._connectToController(address)
       }, timeout * 1000)
     }
+  }
+
+  /**
+   * Start a controller discovery attempt.
+   * @param {string} address IP/host address
+   */
+  _scanForController(address) {
+    const message = Buffer.from(JSON.stringify({ t: 'scan' }))
+    this.registrationStartedAt = Date.now()
+    socket.setBroadcast(true)
+    socket.send(message, 0, message.length, 7000, address)
+    console.log('[UDP] Connected to controller at %s', address)
+  }
+
+  /**
+   * Restart the complete scan and binding process while retaining device
+   * instances, so their polling timers and MQTT setup are not duplicated.
+   * @param {string} reason Reason the connection is being recovered
+   */
+  _recover(reason) {
+    const devices = this.controller.devices || {}
+    console.log('[UDP] Controller recovery requested (%s); restarting registration...', reason)
+    this.controller = { devices }
+    this.registrationComplete = false
+    this.lastStatusAt = 0
+    this._scanForController(this.options.host)
+  }
+
+  /**
+   * Detect incomplete registrations and controllers which stop replying to
+   * status polls. A recovery always begins with a fresh discovery scan.
+   */
+  _startRecoveryWatchdog() {
+    const checkInterval = Math.max(1000, Math.floor(this.options.recoveryInterval / 2))
+    setInterval(() => {
+      const now = Date.now()
+      if (!this.controller.bound || !this.registrationComplete) {
+        if (this.registrationStartedAt && now - this.registrationStartedAt >= this.options.recoveryInterval)
+          this._recover('registration timed out')
+        return
+      }
+
+      // Controller-only installations have no status polling to monitor.
+      if (this.options.controllerOnly || !Object.keys(this.controller.devices).length)
+        return
+      if (this.lastStatusAt && now - this.lastStatusAt >= this.options.recoveryInterval)
+        this._recover('status packets timed out')
+    }, checkInterval)
   }
 
   /**
@@ -104,7 +160,7 @@ class Controller {
     this.controller.address = address
     this.controller.port = port
     this.controller.bound = false
-    this.controller.devices = {}
+    this.controller.devices = this.controller.devices || {}
 
     console.log('[UDP] New Controller registered: %s', this.controller.name)
   }
@@ -158,6 +214,11 @@ class Controller {
   _confirmBinding(key) {
     this.controller.bound = true
     this.controller.key = key
+    this.lastStatusAt = Date.now()
+    if (this.controller.subCnt < 1) {
+      this.registrationComplete = true
+      this.registrationStartedAt = 0
+    }
     console.log('[UDP] Controller %s is bound!', this.controller.name)
   }
 
@@ -178,6 +239,8 @@ class Controller {
      * @param {Device} device - Device
      */
   _requestDeviceStatus(device) {
+    if (!this.controller.bound)
+      return
     const pack = {
       cols: Object.keys(cmd).map(key => cmd[key].code),
       mac: device.mac,
@@ -228,11 +291,16 @@ class Controller {
           count++
       if (count < this.controller.subCnt)
         this._requestSubDevices(pack.i + 1)
+      else {
+        this.registrationComplete = true
+        this.registrationStartedAt = 0
+      }
       return
     }
 
     // If package type is device status
     if (type === 'dat' && this.controller.bound) {
+      this.lastStatusAt = Date.now()
       if (Object.keys(this.controller.devices).includes(pack.mac))
         this.controller.devices[pack.mac]._handleDat(pack)
       else
@@ -242,6 +310,7 @@ class Controller {
 
     // If package type is response, update device properties
     if (type === 'res' && this.controller.bound) {
+      this.lastStatusAt = Date.now()
       if (Object.keys(this.controller.devices).includes(pack.mac))
         this.controller.devices[pack.mac]._handleRes(pack)
       else

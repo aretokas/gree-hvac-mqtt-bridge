@@ -23,6 +23,7 @@ for i in $(seq 0 "$((INSTANCE_COUNT - 1))"); do
   ZIGBEE2MQTT_SENSOR_TOPIC=$(bashio::config "devices[$i].zigbee2mqtt_sensor_topic")
   AUTO_LIGHTS=$(bashio::config "devices[$i].auto_lights")
   AUTO_XFAN=$(bashio::config "devices[$i].auto_xfan")
+  RECOVERY_INTERVAL=$(bashio::config "devices[$i].recovery_interval")
   [[ "$ZIGBEE2MQTT_SENSOR_TOPIC" == "null" ]] && ZIGBEE2MQTT_SENSOR_TOPIC=''
 
   bashio::log.info "Starting bridge instance $i for $HVAC_HOST"
@@ -35,6 +36,7 @@ for i in $(seq 0 "$((INSTANCE_COUNT - 1))"); do
     --mqtt-retain="$MQTT_RETAIN" \
     --auto-lights="$AUTO_LIGHTS" \
     --auto-xfan="$AUTO_XFAN" \
+    --recovery-interval="$RECOVERY_INTERVAL" \
     --homeassistant-mqtt-discovery \
     --homeassistant-discovery-prefix="$DISCOVERY_PREFIX" \
     --debug="$DEBUG" \

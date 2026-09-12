@@ -24,6 +24,7 @@ options:
     - hvac_host: 192.168.1.255
       auto_lights: true
       auto_xfan: true
+      recovery_interval: 30
       mqtt_topic_prefix: greehvac
 schema:
   mqtt:
@@ -37,5 +38,6 @@ schema:
     - hvac_host: str
       auto_lights: bool?
       auto_xfan: bool?
+      recovery_interval: int?
       mqtt_topic_prefix: str
       zigbee2mqtt_sensor_topic: str?
